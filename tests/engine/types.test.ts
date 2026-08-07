@@ -60,6 +60,9 @@ describe('Engine types', () => {
       scopeBlockIds: ['scope1'],
       workspaceBlockIds: ['ws1'],
       blockOrder: ['b1', 'b2'],
+      getOutputs: (_t: number, _state: number[]) => new Map([['b1', [1.0]]]),
+      absoluteBlockIds: new Set(['b1']),
+      applyAbsoluteState: (_t: number, _state: number[]) => {},
     };
     expect(model.stateSize).toBe(2);
     expect(typeof model.f).toBe('function');
@@ -68,6 +71,8 @@ describe('Engine types', () => {
     expect(model.scopeBlockIds).toEqual(['scope1']);
     expect(model.workspaceBlockIds).toEqual(['ws1']);
     expect(model.blockOrder).toEqual(['b1', 'b2']);
+    expect(model.absoluteBlockIds.has('b1')).toBe(true);
+    expect(model.getOutputs(0, [1]).get('b1')).toEqual([1.0]);
   });
 
   it('WorkerMessage run type', () => {
