@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateGraph } from '../../src/engine/validate';
 import { BlockRegistry } from '../../src/blocks/registry';
-import { BlockType, BlockCategory } from '../../src/blocks/types';
+import { BlockType } from '../../src/blocks/types';
 import { Integrator } from '../../src/blocks/linear/Integrator';
 import { Gain } from '../../src/blocks/math/Gain';
 import { Constant } from '../../src/blocks/sources/Constant';
