@@ -12,7 +12,7 @@ export const TransportDelay = {
     parameters: {
       delayTime: { type: 'number', default: 0.1, min: 0, step: 0.01, label: 'Delay Time (s)' },
     },
-    compute: (dt, inputs, state, _params) => {
+    compute: (_dt, inputs, state, _params) => {
       // Shift-register approach: state[0] is oldest, state[bufSize-1] is most recent
       // Output = state[0] (oldest value = delayed by bufSize * dt)
       const output = state[0];
