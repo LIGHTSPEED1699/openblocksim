@@ -39,6 +39,7 @@ export interface CompiledModel {
   workspaceBlockIds: string[];
   blockOrder: string[]; // topological order of block IDs
   getOutputs: (t: number, state: number[]) => Map<string, number[]>; // blockId → output values
+  updatePrevOutputs: (t: number, state: number[]) => void; // snapshot outputs for next step's feedback edges
   absoluteBlockIds: Set<string>; // blocks using absolute state updates (TransportDelay, Relay)
   applyAbsoluteState: (t: number, state: number[]) => void; // apply absolute state updates in-place
 }

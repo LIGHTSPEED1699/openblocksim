@@ -34,19 +34,15 @@ export function solve(
 
   time[0] = t;
 
+  // Initialize previous-step outputs for feedback edges
+  if (model.updatePrevOutputs) {
+    model.updatePrevOutputs(t, state);
+  }
+
   // Capture initial outputs for scopes
   if (model.getOutputs) {
     const initialOutputs = model.getOutputs(t, state);
     for (const scopeId of model.scopeBlockIds) {
-      // Scope block has 1 input — find which block feeds it
-      const scopeBlock = model.blockOrder.find((id) => id === scopeId);
-      if (scopeBlock) {
-        // The scope's input comes from its source block
-        // We need to find the wire feeding the scope and read that source's output
-        // For now, use getOutputs which returns all block outputs
-        // The scope trace = the output of whatever block feeds it
-        // This is handled by the compiler's input wire tracking
-      }
       scopes[scopeId][0] = 0; // will be filled by getOutputs logic
     }
   }
@@ -83,14 +79,13 @@ export function solve(
     if (model.getOutputs) {
       const outputs = model.getOutputs(t, state);
       for (const scopeId of model.scopeBlockIds) {
-        // Find which block's output feeds this scope
-        // The compiler stored scope inputs in the block order
-        // The scope's input value = the output of its source block
-        // For MVP: read the first input to the scope block
-        // This requires the compiler to expose input mapping
-        // For now: the scope trace is the output of the block preceding it
         // TODO: compiler should expose a getScopeValues function
       }
+    }
+
+    // Update previous-step outputs for next step's feedback edges
+    if (model.updatePrevOutputs) {
+      model.updatePrevOutputs(t, state);
     }
   }
 

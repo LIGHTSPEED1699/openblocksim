@@ -20,21 +20,23 @@ export function compileGraph(
     inputsFrom.get(e.target)?.push({ source: e.source, sourcePort: e.sourcePort, targetPort: e.targetPort });
   }
 
-  // Topological sort (Kahn's algorithm)
+  // Topological sort (Kahn's algorithm) with feedback edge detection
+  // For cyclic graphs (closed-loop), identify feedback edges and break the cycle
   const inDegree = new Map<string, number>();
   for (const b of graph.blocks) inDegree.set(b.id, 0);
   for (const e of graph.edges) {
     inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
   }
 
+  const adj = new Map<string, string[]>();
+  for (const b of graph.blocks) adj.set(b.id, []);
+  for (const e of graph.edges) adj.get(e.source)?.push(e.target);
+
   const queue: string[] = [];
   for (const [id, deg] of inDegree) {
     if (deg === 0) queue.push(id);
   }
   const order: string[] = [];
-  const adj = new Map<string, string[]>();
-  for (const b of graph.blocks) adj.set(b.id, []);
-  for (const e of graph.edges) adj.get(e.source)?.push(e.target);
 
   while (queue.length > 0) {
     const node = queue.shift()!;
@@ -45,13 +47,67 @@ export function compileGraph(
     }
   }
 
-  // Helper: compute state size for a block (TransportDelay has dynamic size)
+  // If there are blocks not yet ordered, they are part of cycles.
+  // Break feedback edges to resolve the cycle.
+  // Feedback edges use previous-step outputs (one-step delay).
+  const feedbackEdges = new Set<string>();
+  while (order.length < graph.blocks.length) {
+    // Find edges within the remaining cyclic subgraph
+    const unordered = new Set(graph.blocks.map((b) => b.id).filter((id) => !order.includes(id)));
+    let broke = false;
+    for (const e of graph.edges) {
+      if (unordered.has(e.source) && unordered.has(e.target) && !feedbackEdges.has(e.id)) {
+        // Prefer breaking edges from dynamic blocks (they have state for delay)
+        const srcBlock = blocks.get(e.source)!;
+        if (!srcBlock.isDynamic) continue;
+        feedbackEdges.add(e.id);
+        inDegree.set(e.target, (inDegree.get(e.target) ?? 0) - 1);
+        broke = true;
+        break;
+      }
+    }
+    if (!broke) {
+      // No dynamic block edge to break — try any edge in the cycle
+      for (const e of graph.edges) {
+        if (unordered.has(e.source) && unordered.has(e.target) && !feedbackEdges.has(e.id)) {
+          feedbackEdges.add(e.id);
+          inDegree.set(e.target, (inDegree.get(e.target) ?? 0) - 1);
+          broke = true;
+          break;
+        }
+      }
+    }
+    if (!broke) break; // Cannot resolve — should not happen if graph is validated
+    // Continue Kahn's algorithm after breaking the feedback edge
+    for (const [id, deg] of inDegree) {
+      if (deg === 0 && !order.includes(id)) queue.push(id);
+    }
+    while (queue.length > 0) {
+      const node = queue.shift()!;
+      order.push(node);
+      for (const neighbor of adj.get(node) ?? []) {
+        const edge = graph.edges.find(
+          (e) => e.source === node && e.target === neighbor,
+        );
+        if (edge && feedbackEdges.has(edge.id)) continue;
+        inDegree.set(neighbor, (inDegree.get(neighbor) ?? 0) - 1);
+        if (inDegree.get(neighbor) === 0 && !order.includes(neighbor)) queue.push(neighbor);
+      }
+    }
+  }
+
+  // Helper: compute state size for a block (TransportDelay and TransferFunction have dynamic size)
   const getStateSize = (id: string): number => {
     const block = blocks.get(id)!;
     if (block.type === BlockType.TransportDelay) {
       const blockParams = graph.blocks.find((b) => b.id === id)!.params;
       const delayTime = blockParams.delayTime as number;
       return Math.max(1, Math.ceil(delayTime / dt));
+    }
+    if (block.type === BlockType.TransferFunction) {
+      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const den = (blockParams.den as number[]) ?? [1, 1];
+      return Math.max(1, den.length - 1);
     }
     return block.stateSize;
   };
@@ -76,6 +132,17 @@ export function compileGraph(
     if (block.type === BlockType.ToWorkspace) workspaceBlockIds.push(id);
   }
 
+  // Previous-step outputs for feedback edges (one-step delay)
+  let prevOutputs: Map<string, number[]> = new Map();
+
+  // Build feedback edge lookup: "targetId:targetPort" → is feedback?
+  const feedbackEdgeLookup = new Set<string>();
+  for (const e of graph.edges) {
+    if (feedbackEdges.has(e.id)) {
+      feedbackEdgeLookup.add(`${e.target}:${e.targetPort}`);
+    }
+  }
+
   // Helper: gather inputs for a block
   const gatherInputs = (
     id: string,
@@ -87,8 +154,12 @@ export function compileGraph(
     for (let port = 0; port < block.inputs; port++) {
       const wire = inputWires.find((w) => w.targetPort === port);
       if (wire) {
-        const srcOutputs = outputs.get(wire.source) ?? [];
-        inputValues.push(srcOutputs[wire.sourcePort] ?? 0);
+        // Use previous-step output for feedback edges (one-step delay)
+        const isFeedback = feedbackEdgeLookup.has(`${id}:${port}`);
+        const sourceOutputs = isFeedback
+          ? (prevOutputs.get(wire.source) ?? [0])
+          : (outputs.get(wire.source) ?? []);
+        inputValues.push(sourceOutputs[wire.sourcePort] ?? 0);
       } else {
         inputValues.push(0);
       }
@@ -172,10 +243,16 @@ export function compileGraph(
     }
   };
 
+  // Update prevOutputs — called by solver after each completed step
+  const updatePrevOutputs = (t: number, state: number[]): void => {
+    prevOutputs = getOutputs(t, state);
+  };
+
   return {
     stateSize: stateOffset,
     f,
     getOutputs,
+    updatePrevOutputs,
     absoluteBlockIds,
     applyAbsoluteState,
     outputMap: new Map(),
