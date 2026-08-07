@@ -148,7 +148,7 @@ export function compileGraph(
   const absoluteBlockIds = new Set<string>();
   for (const id of order) {
     const block = blocks.get(id)!;
-    if (block.isDynamic && (block as any).stateUpdateMode === 'absolute') {
+    if (block.isDynamic && block.stateUpdateMode === 'absolute') {
       absoluteBlockIds.add(id);
     }
   }
