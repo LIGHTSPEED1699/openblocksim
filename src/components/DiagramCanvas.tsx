@@ -5,6 +5,7 @@ import {
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
+  useReactFlow,
   type Connection,
   type Node,
   type Edge,
@@ -84,6 +85,8 @@ export function DiagramCanvas() {
   const setEdges = useDiagramStore((s) => s.setEdges);
   const selectBlock = useDiagramStore((s) => s.selectBlock);
   const addNode = useDiagramStore((s) => s.addNode);
+  const removeNode = useDiagramStore((s) => s.removeNode);
+  const { screenToFlowPosition } = useReactFlow();
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -114,7 +117,7 @@ export function DiagramCanvas() {
       e.preventDefault();
       const type = e.dataTransfer.getData('application/reactflow') as BlockType;
       if (!type) return;
-      const position = { x: e.clientX - 200, y: e.clientY - 100 };
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const { inputs, outputs, category } = blockMeta(type);
       const newNode: Node = {
         id: `${type}-${Date.now()}`,
@@ -124,7 +127,14 @@ export function DiagramCanvas() {
       };
       addNode(newNode, type, {});
     },
-    [addNode]
+    [addNode, screenToFlowPosition]
+  );
+
+  const onNodesDelete = useCallback(
+    (deletedNodes: Node[]) => {
+      deletedNodes.forEach((node) => removeNode(node.id));
+    },
+    [removeNode]
   );
 
   return (
@@ -136,7 +146,9 @@ export function DiagramCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={(_, node) => selectBlock(node.id)}
+        onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
+        deleteKeyCode={['Backspace', 'Delete']}
         fitView
       >
         <Background />
