@@ -106,7 +106,7 @@ export function DiagramCanvas() {
   const onConnect = useCallback(
     (connection: Connection) => {
       setEdges(addEdge(
-        { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}` },
+        { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}`, type: 'default' },
         edges
       ) as Edge[]);
     },
@@ -152,6 +152,8 @@ export function DiagramCanvas() {
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
         colorMode={theme}
+        edgesFocusable
+        nodesDraggable
       >
         <Background />
         <Controls />
