@@ -2,35 +2,81 @@ import { describe, it, expect } from 'vitest';
 import { PID } from '../../src/blocks/control/PID';
 import { Relay } from '../../src/blocks/control/Relay';
 
-describe('PID block', () => {
-  it('has stateSize 2 and isDynamic true', () => {
+describe('PID block (ISA standard form)', () => {
+  it('has stateSize 2, isDynamic true, 2 inputs', () => {
     const block = PID.create();
     expect(block.isDynamic).toBe(true);
     expect(block.stateSize).toBe(2);
+    expect(block.inputs).toBe(2);
+    expect(block.outputs).toBe(1);
   });
-  it('proportional-only output = Kp * error', () => {
+
+  it('proportional-only: u = Kp * error (Ti=0, Td=0)', () => {
     const block = PID.create();
-    const [out] = block.compute(0.01, [5], [0, 0], { Kp: 2, Ki: 0, Kd: 0 });
+    // inputs: [error, pv]
+    const [out] = block.compute(0.01, [5, 5], [0, 0], { Kp: 2, Ti: 0, Td: 0 });
     expect(out[0]).toBeCloseTo(10, 5);
   });
-  it('includes integral term from state', () => {
+
+  it('integral term: u = Kp * [e + (1/Ti) * ∫e]', () => {
     const block = PID.create();
-    const [out] = block.compute(0.01, [5], [3, 0], { Kp: 1, Ki: 2, Kd: 0 });
-    // output = Kp*input + Ki*state[0] + Kd*(input-state[1])/dt
-    // = 1*5 + 2*3 + 0 = 11
-    expect(out[0]).toBeCloseTo(11, 5);
+    // state[0] = integral = 3, error = 5, Ti = 2
+    // u = Kp * [error + (1/Ti) * integral] = 1 * [5 + 0.5 * 3] = 6.5
+    const [out] = block.compute(0.01, [5, 5], [3, 0], { Kp: 1, Ti: 2, Td: 0 });
+    expect(out[0]).toBeCloseTo(6.5, 5);
   });
-  it('includes derivative term', () => {
+
+  it('derivative on PV: u = Kp * [e + Td * (-dPV/dt)]', () => {
     const block = PID.create();
-    const [out] = block.compute(0.1, [5], [0, 2], { Kp: 1, Ki: 0, Kd: 0.5 });
-    // output = 1*5 + 0 + 0.5*(5-2)/0.1 = 5 + 15 = 20
-    expect(out[0]).toBeCloseTo(20, 5);
+    // error = 5, pv = 3, prevPv = 2 (state[1]), dt = 0.1
+    // dPV/dt = (3 - 2) / 0.1 = 10
+    // D term = Kp * Td * (-10) = 1 * 0.5 * (-10) = -5
+    // P term = Kp * error = 5
+    // u = 5 + 0 + (-5) = 0
+    const [out] = block.compute(0.1, [5, 3], [0, 2], { Kp: 1, Ti: 0, Td: 0.5 });
+    expect(out[0]).toBeCloseTo(0, 5);
   });
-  it('state_dot[0] = input (integral), state_dot[1] = (input - state[1]) / dt', () => {
+
+  it('derivative opposes PV increase (no derivative kick on setpoint change)', () => {
     const block = PID.create();
-    const [, stateDot] = block.compute(0.1, [5], [0, 2], { Kp: 1, Ki: 0, Kd: 0 });
-    expect(stateDot[0]).toBe(5);
-    expect(stateDot[1]).toBeCloseTo(30, 5); // (5-2)/0.1
+    // Setpoint step: error jumps from 0 to 1, PV unchanged (still 0)
+    // dPV/dt = 0 → D term = 0, no derivative kick
+    const [out] = block.compute(0.1, [1, 0], [0, 0], { Kp: 1, Ti: 0, Td: 1 });
+    expect(out[0]).toBeCloseTo(1, 5); // pure P, no D kick
+  });
+
+  it('derivative kicks when PV changes (correct behavior)', () => {
+    const block = PID.create();
+    // PV rising: pv=1, prevPv=0, dt=0.1 → dPV/dt = 10
+    // D term = Kp * Td * (-10) = 1 * 1 * (-10) = -10
+    // P term = Kp * error = 1 * 0.5 = 0.5
+    // u = 0.5 + 0 + (-10) = -9.5
+    const [out] = block.compute(0.1, [0.5, 1], [0, 0], { Kp: 1, Ti: 0, Td: 1 });
+    expect(out[0]).toBeCloseTo(-9.5, 5);
+  });
+
+  it('state_dot[0] = error, state_dot[1] = dPV/dt', () => {
+    const block = PID.create();
+    const [, stateDot] = block.compute(0.1, [5, 3], [0, 2], { Kp: 1, Ti: 0, Td: 0 });
+    expect(stateDot[0]).toBe(5);           // error
+    expect(stateDot[1]).toBeCloseTo(10, 5); // (3-2)/0.1 = 10
+  });
+
+  it('Ti=0 disables integral (no division by zero)', () => {
+    const block = PID.create();
+    const [out] = block.compute(0.01, [5, 5], [100, 0], { Kp: 1, Ti: 0, Td: 0 });
+    expect(out[0]).toBeCloseTo(5, 5); // pure P, integral ignored
+  });
+
+  it('falls back to error as PV when only 1 input provided', () => {
+    const block = PID.create();
+    // Single input: error=5, no PV → pv defaults to error=5
+    // dPV/dt = (5 - prevPv) / dt = (5 - 2) / 0.1 = 30
+    // D term = 1 * 0.5 * (-30) = -15
+    // P term = 5
+    // u = 5 + 0 + (-15) = -10
+    const [out] = block.compute(0.1, [5], [0, 2], { Kp: 1, Ti: 0, Td: 0.5 });
+    expect(out[0]).toBeCloseTo(-10, 5);
   });
 });
 

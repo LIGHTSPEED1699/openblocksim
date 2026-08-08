@@ -49,8 +49,11 @@ export function BaseNode({ id, data }: NodeProps) {
   const scopeIcon = theme === 'dark' ? '/scope-icon-dark.png' : '/scope-icon.png';
 
   // Sum block: render + / - signs on input ports based on signs parameter
+  // PID block: label input ports as e and PV
   const isSum = nodeData.type === 'Sum';
+  const isPid = nodeData.type === 'PID';
   const signs = isSum && params ? (params.signs as number[]) : null;
+  const pidLabels = isPid ? ['e', 'PV'] : null;
 
   return (
     <div
@@ -68,14 +71,15 @@ export function BaseNode({ id, data }: NodeProps) {
       {Array.from({ length: nodeData.inputs }).map((_, i) => {
         const topPct = `${((i + 1) / (nodeData.inputs + 1)) * 100}%`;
         const signLabel = signs ? (signs[i] ?? 1) >= 0 ? '+' : '−' : null;
+        const portLabel = pidLabels ? pidLabels[i] : null;
         return (
           <div key={`in-${i}`}>
-            {signLabel && (
+            {(signLabel || portLabel) && (
               <div
                 className="absolute text-xs font-bold text-slate-600 dark:text-slate-300 select-none"
                 style={{ top: topPct, left: '6px', transform: 'translateY(-50%)' }}
               >
-                {signLabel}
+                {signLabel || portLabel}
               </div>
             )}
             <Handle

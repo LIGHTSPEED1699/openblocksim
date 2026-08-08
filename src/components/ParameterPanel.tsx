@@ -49,8 +49,8 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
   },
   [BlockType.PID]: {
     Kp: { type: 'number', default: 1, label: 'Proportional Gain (Kp)' },
-    Ki: { type: 'number', default: 0, label: 'Integral Gain (Ki)' },
-    Kd: { type: 'number', default: 0, label: 'Derivative Gain (Kd)' },
+    Ti: { type: 'number', default: 0, min: 0, step: 0.1, label: 'Integral Time Ti (s)' },
+    Td: { type: 'number', default: 0, min: 0, step: 0.1, label: 'Derivative Time Td (s)' },
   },
   [BlockType.Relay]: {
     onValue: { type: 'number', default: 1, label: 'On Value' },
