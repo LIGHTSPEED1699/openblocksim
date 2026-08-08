@@ -106,8 +106,11 @@ export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }:
                 type="text"
                 value={Array.isArray(value) ? value.join(', ') : String(value)}
                 onChange={(e) => {
-                  const arr = e.target.value.split(',').map((s) => parseFloat(s.trim()));
-                  onUpdate(selectedBlockId, { [key]: arr });
+                  const parts = e.target.value.split(',').map((s) => s.trim());
+                  const arr = parts.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
+                  if (arr.length > 0) {
+                    onUpdate(selectedBlockId, { [key]: arr });
+                  }
                 }}
                 className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
               />
