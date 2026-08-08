@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { BlockType, type ParamSpec, type Params } from '../blocks/types';
 
 const PARAM_SPECS: Record<BlockType, ParamSpec> = {
@@ -66,6 +67,44 @@ interface Props {
   onUpdate: (id: string, params: Params) => void;
 }
 
+/** Uncontrolled array input — keeps local text state, commits to store on blur/Enter. */
+function ArrayInput({ label, value, onCommit }: {
+  label: string;
+  value: unknown;
+  onCommit: (arr: number[]) => void;
+}) {
+  const initial = Array.isArray(value) ? value.join(', ') : String(value);
+  const [text, setText] = useState(initial);
+
+  // Resync when the selected block changes or external value changes
+  useEffect(() => { setText(initial); }, [initial]);
+
+  const commit = () => {
+    const parts = text.split(',').map((s) => s.trim());
+    const arr = parts.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
+    if (arr.length > 0) {
+      onCommit(arr);
+    } else {
+      // Revert to previous valid value
+      setText(initial);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <label className="block text-xs text-[var(--text-secondary)] mb-1">{label}</label>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+        className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
+      />
+    </div>
+  );
+}
+
 export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }: Props) {
   if (!selectedBlockId || !blockType) {
     return (
@@ -100,25 +139,12 @@ export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }:
         }
         if (paramSpec.type === 'array') {
           return (
-            <div key={key} className="mb-3">
-              <label className="block text-xs text-[var(--text-secondary)] mb-1">{paramSpec.label}</label>
-              <input
-                type="text"
-                value={Array.isArray(value) ? value.join(', ') : String(value)}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  const parts = raw.split(',').map((s) => s.trim());
-                  // Allow intermediate states like "-" or "1, " or "" — just skip update
-                  if (parts.every((s) => s === '' || !isNaN(parseFloat(s)))) {
-                    const arr = parts.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
-                    if (arr.length > 0) {
-                      onUpdate(selectedBlockId, { [key]: arr });
-                    }
-                  }
-                }}
-                className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
-              />
-            </div>
+            <ArrayInput
+              key={key}
+              label={paramSpec.label}
+              value={value}
+              onCommit={(arr) => onUpdate(selectedBlockId, { [key]: arr })}
+            />
           );
         }
         return null;
