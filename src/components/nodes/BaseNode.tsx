@@ -44,6 +44,7 @@ export function BaseNode({ id, data }: NodeProps) {
   const isSelected = id === selectedBlockId;
 
   const icon = ICONS[nodeData.type] ?? nodeData.type;
+  const isScope = nodeData.type === 'Scope';
 
   // Sum block: render + / - signs on input ports based on signs parameter
   const isSum = nodeData.type === 'Sum';
@@ -56,7 +57,11 @@ export function BaseNode({ id, data }: NodeProps) {
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
       <span className="text-sm font-medium text-slate-800 dark:text-slate-100 select-none">
-        {icon}
+        {isScope ? (
+          <img src="/scope-icon.png" alt="scope" className="w-4 h-4 inline-block" />
+        ) : (
+          icon
+        )}
       </span>
       {Array.from({ length: nodeData.inputs }).map((_, i) => {
         const topPct = `${((i + 1) / (nodeData.inputs + 1)) * 100}%`;

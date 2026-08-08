@@ -51,7 +51,11 @@ export function BlockLibrary({ onDragStart }: Props) {
               }}
               className={`flex items-center gap-2 ${accent} border-l-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-r px-2 py-1 mb-1 cursor-grab hover:opacity-80 transition-opacity select-none`}
             >
-              <span className="font-mono text-base">{ICONS[type]}</span>
+              {type === BlockType.Scope ? (
+                <img src="/scope-icon.png" alt="scope" className="w-4 h-4" />
+              ) : (
+                <span className="font-mono text-base">{ICONS[type]}</span>
+              )}
               <span className="text-xs text-[var(--text-secondary)]">{type}</span>
             </div>
           ))}
