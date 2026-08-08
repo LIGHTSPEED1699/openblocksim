@@ -44,9 +44,11 @@ export function BaseNode({ id, data }: NodeProps) {
   const isSelected = id === selectedBlockId;
 
   const icon = ICONS[nodeData.type] ?? nodeData.type;
-  const isScope = nodeData.type === 'Scope';
+  const isImageBlock = nodeData.type === 'Scope' || nodeData.type === 'Step';
   const theme = useDiagramStore((s) => s.theme);
-  const scopeIcon = theme === 'dark' ? '/scope-icon-dark.png' : '/scope-icon.png';
+  const imgIcon = theme === 'dark'
+    ? (nodeData.type === 'Scope' ? '/scope-icon-dark.png' : '/step-icon-dark.png')
+    : (nodeData.type === 'Scope' ? '/scope-icon.png' : '/step-icon.png');
 
   // Sum block: render + / - signs on input ports based on signs parameter
   // PID block: label input ports as e and PV
@@ -62,8 +64,8 @@ export function BaseNode({ id, data }: NodeProps) {
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
       <span className="text-sm font-medium text-slate-800 dark:text-slate-100 select-none">
-        {isScope ? (
-          <img src={scopeIcon} alt="scope" className="w-4 h-4 inline-block" />
+        {isImageBlock ? (
+          <img src={imgIcon} alt={nodeData.type} className="w-5 h-5 inline-block" />
         ) : (
           icon
         )}

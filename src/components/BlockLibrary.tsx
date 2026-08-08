@@ -39,6 +39,13 @@ interface Props {
 export function BlockLibrary({ onDragStart }: Props) {
   const theme = useDiagramStore((s) => s.theme);
   const scopeIcon = theme === 'dark' ? '/scope-icon-dark.png' : '/scope-icon.png';
+  const stepIcon = theme === 'dark' ? '/step-icon-dark.png' : '/step-icon.png';
+  const isImageIcon = (type: BlockType) => type === BlockType.Scope || type === BlockType.Step;
+  const iconFor = (type: BlockType) => {
+    if (type === BlockType.Scope) return scopeIcon;
+    if (type === BlockType.Step) return stepIcon;
+    return '';
+  };
 
   return (
     <div className="w-44 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] overflow-y-auto p-2">
@@ -55,12 +62,14 @@ export function BlockLibrary({ onDragStart }: Props) {
               }}
               className={`flex items-center gap-2 ${accent} border-l-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-r px-2 py-1 mb-1 cursor-grab hover:opacity-80 transition-opacity select-none`}
             >
-              {type === BlockType.Scope ? (
-                <img src={scopeIcon} alt="scope" className="w-4 h-4" />
+              {isImageIcon(type) ? (
+                <img src={iconFor(type)} alt={type} className="w-5 h-5" />
               ) : (
                 <span className="font-mono text-base">{ICONS[type]}</span>
               )}
-              <span className="text-xs text-[var(--text-secondary)]">{type}</span>
+              {!isImageIcon(type) && (
+                <span className="text-xs text-[var(--text-secondary)]">{type}</span>
+              )}
             </div>
           ))}
         </div>
