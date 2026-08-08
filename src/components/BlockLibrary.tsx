@@ -1,4 +1,5 @@
 import { BlockType } from '../blocks/types';
+import { useDiagramStore } from '../store/diagramStore';
 
 const ICONS: Record<BlockType, string> = {
   [BlockType.Constant]: '1',
@@ -36,6 +37,9 @@ interface Props {
 }
 
 export function BlockLibrary({ onDragStart }: Props) {
+  const theme = useDiagramStore((s) => s.theme);
+  const scopeIcon = theme === 'dark' ? '/scope-icon-dark.png' : '/scope-icon.png';
+
   return (
     <div className="w-44 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] overflow-y-auto p-2">
       {BLOCK_GROUPS.map(({ label, accent, blocks }) => (
@@ -52,7 +56,7 @@ export function BlockLibrary({ onDragStart }: Props) {
               className={`flex items-center gap-2 ${accent} border-l-2 bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-sm rounded-r px-2 py-1 mb-1 cursor-grab hover:opacity-80 transition-opacity select-none`}
             >
               {type === BlockType.Scope ? (
-                <img src="/scope-icon.png" alt="scope" className="w-4 h-4" />
+                <img src={scopeIcon} alt="scope" className="w-4 h-4" />
               ) : (
                 <span className="font-mono text-base">{ICONS[type]}</span>
               )}
