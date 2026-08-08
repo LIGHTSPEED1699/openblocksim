@@ -36,6 +36,7 @@ export interface CompiledModel {
   f: (t: number, state: number[]) => number[]; // state_dot
   outputMap: Map<string, number[]>; // blockId → output indices in signal vector
   scopeBlockIds: string[];
+  scopeInputs: Map<string, { source: string; sourcePort: number }[]>;
   workspaceBlockIds: string[];
   blockOrder: string[]; // topological order of block IDs
   getOutputs: (t: number, state: number[]) => Map<string, number[]>; // blockId → output values

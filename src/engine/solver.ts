@@ -39,9 +39,23 @@ export function solve(
     model.updatePrevOutputs(t, state);
   }
 
-  // Initialize scope traces at t=0
-  for (const scopeId of model.scopeBlockIds) {
-    scopes[scopeId][0] = 0;
+  // Initialize scope traces at t=0 — capture initial input values
+  if (model.getOutputs) {
+    const initOutputs = model.getOutputs(0, state);
+    for (const scopeId of model.scopeBlockIds) {
+      const inputWires = model.scopeInputs?.get(scopeId);
+      if (inputWires && inputWires.length > 0) {
+        const wire = inputWires[0];
+        const srcOut = initOutputs.get(wire.source) ?? [];
+        scopes[scopeId][0] = srcOut[wire.sourcePort] ?? 0;
+      } else {
+        scopes[scopeId][0] = 0;
+      }
+    }
+  } else {
+    for (const scopeId of model.scopeBlockIds) {
+      scopes[scopeId][0] = 0;
+    }
   }
 
   for (let step = 0; step < numSteps; step++) {
@@ -72,9 +86,20 @@ export function solve(
       }
     }
 
-    // Capture scope traces (TODO: wire getOutputs → scope input mapping)
+    // Capture scope traces — record the input value feeding each scope block
     if (model.getOutputs) {
-      model.getOutputs(t, state);
+      const allOutputs = model.getOutputs(t, state);
+      for (const scopeId of model.scopeBlockIds) {
+        // Scope has 1 input — find which block feeds it
+        const inputWires = model.scopeInputs?.get(scopeId);
+        if (inputWires && inputWires.length > 0) {
+          const wire = inputWires[0];
+          const srcOut = allOutputs.get(wire.source) ?? [];
+          scopes[scopeId][step + 1] = srcOut[wire.sourcePort] ?? 0;
+        } else {
+          scopes[scopeId][step + 1] = 0;
+        }
+      }
     }
 
     // Update previous-step outputs for next step's feedback edges

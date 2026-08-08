@@ -248,6 +248,12 @@ export function compileGraph(
     prevOutputs = getOutputs(t, state);
   };
 
+  // Map scope block IDs to their input wires (source + sourcePort)
+  const scopeInputs = new Map<string, { source: string; sourcePort: number }[]>();
+  for (const id of scopeBlockIds) {
+    scopeInputs.set(id, (inputsFrom.get(id) ?? []).map((w) => ({ source: w.source, sourcePort: w.sourcePort })));
+  }
+
   return {
     stateSize: stateOffset,
     f,
@@ -257,6 +263,7 @@ export function compileGraph(
     applyAbsoluteState,
     outputMap: new Map(),
     scopeBlockIds,
+    scopeInputs,
     workspaceBlockIds,
     blockOrder: order,
   };
