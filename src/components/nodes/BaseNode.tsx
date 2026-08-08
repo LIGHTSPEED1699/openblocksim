@@ -1,4 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { useDiagramStore } from '../../store/diagramStore';
 
 interface BaseNodeData {
   type: string;
@@ -8,11 +9,50 @@ interface BaseNodeData {
   [key: string]: unknown;
 }
 
-export function BaseNode({ data }: NodeProps) {
+const ICONS: Record<string, string> = {
+  // Sources
+  Constant: '1',
+  Step: '⌐',
+  Ramp: '╱',
+  Sine: '∿',
+  Square: '⊓',
+  // Math
+  Sum: 'Σ',
+  Gain: '×',
+  Product: '⊗',
+  // Linear
+  Integrator: '∫',
+  Derivative: 'd/dt',
+  TransferFunction: 'G(s)',
+  StateSpace: 'SS',
+  TransportDelay: 'τ',
+  // Nonlinear
+  Saturation: '⊥',
+  Deadzone: '⊣',
+  // Control
+  PID: 'PID',
+  Relay: '⇌',
+  // Sinks
+  Scope: '📊',
+  ToWorkspace: 'W',
+};
+
+export function BaseNode({ id, data }: NodeProps) {
   const nodeData = data as unknown as BaseNodeData;
+  const selectedBlockId = useDiagramStore((s) => s.selectedBlockId);
+  const isSelected = id === selectedBlockId;
+
+  const icon = ICONS[nodeData.type] ?? nodeData.type;
+
   return (
-    <div className={`px-3 py-2 rounded-lg border-2 ${nodeData.color} bg-[var(--bg-secondary)] min-w-[80px] text-center`}>
-      <div className="text-sm font-medium text-[var(--text-primary)]">{nodeData.type}</div>
+    <div
+      className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-slate-400 dark:border-slate-500'} bg-white dark:bg-slate-800 min-w-[60px] min-h-[40px] flex items-center justify-center relative`}
+    >
+      {/* Thin left accent stripe for category */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
+      <span className="text-sm font-medium text-slate-800 dark:text-slate-100 select-none">
+        {icon}
+      </span>
       {Array.from({ length: nodeData.inputs }).map((_, i) => (
         <Handle
           key={`in-${i}`}
@@ -20,7 +60,7 @@ export function BaseNode({ data }: NodeProps) {
           position={Position.Left}
           id={`in-${i}`}
           style={{ top: `${((i + 1) / (nodeData.inputs + 1)) * 100}%` }}
-          className="w-2 h-2 bg-[var(--accent)]"
+          className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
         />
       ))}
       {Array.from({ length: nodeData.outputs }).map((_, i) => (
@@ -30,7 +70,7 @@ export function BaseNode({ data }: NodeProps) {
           position={Position.Right}
           id={`out-${i}`}
           style={{ top: `${((i + 1) / (nodeData.outputs + 1)) * 100}%` }}
-          className="w-2 h-2 bg-[var(--accent)]"
+          className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
         />
       ))}
     </div>

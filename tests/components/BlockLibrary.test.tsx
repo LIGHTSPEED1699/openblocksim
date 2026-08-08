@@ -20,6 +20,7 @@ describe('BlockLibrary', () => {
 
   it('renders PID under Control', () => {
     render(<BlockLibrary onDragStart={() => {}} />);
-    expect(screen.getByText('PID')).toBeInTheDocument();
+    const pidElements = screen.getAllByText('PID');
+    expect(pidElements.length).toBeGreaterThanOrEqual(1);
   });
 });
