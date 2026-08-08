@@ -40,9 +40,14 @@ const ICONS: Record<string, string> = {
 export function BaseNode({ id, data }: NodeProps) {
   const nodeData = data as unknown as BaseNodeData;
   const selectedBlockId = useDiagramStore((s) => s.selectedBlockId);
+  const params = useDiagramStore((s) => s.params[id]);
   const isSelected = id === selectedBlockId;
 
   const icon = ICONS[nodeData.type] ?? nodeData.type;
+
+  // Sum block: render + / - signs on input ports based on signs parameter
+  const isSum = nodeData.type === 'Sum';
+  const signs = isSum && params ? (params.signs as number[]) : null;
 
   return (
     <div
@@ -53,16 +58,29 @@ export function BaseNode({ id, data }: NodeProps) {
       <span className="text-sm font-medium text-slate-800 dark:text-slate-100 select-none">
         {icon}
       </span>
-      {Array.from({ length: nodeData.inputs }).map((_, i) => (
-        <Handle
-          key={`in-${i}`}
-          type="target"
-          position={Position.Left}
-          id={`in-${i}`}
-          style={{ top: `${((i + 1) / (nodeData.inputs + 1)) * 100}%` }}
-          className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
-        />
-      ))}
+      {Array.from({ length: nodeData.inputs }).map((_, i) => {
+        const topPct = `${((i + 1) / (nodeData.inputs + 1)) * 100}%`;
+        const signLabel = signs ? (signs[i] ?? 1) >= 0 ? '+' : '−' : null;
+        return (
+          <div key={`in-${i}`}>
+            {signLabel && (
+              <div
+                className="absolute text-xs font-bold text-slate-600 dark:text-slate-300 select-none"
+                style={{ top: topPct, left: '6px', transform: 'translateY(-50%)' }}
+              >
+                {signLabel}
+              </div>
+            )}
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`in-${i}`}
+              style={{ top: topPct }}
+              className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
+            />
+          </div>
+        );
+      })}
       {Array.from({ length: nodeData.outputs }).map((_, i) => (
         <Handle
           key={`out-${i}`}
