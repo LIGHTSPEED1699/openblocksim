@@ -39,12 +39,9 @@ export function solve(
     model.updatePrevOutputs(t, state);
   }
 
-  // Capture initial outputs for scopes
-  if (model.getOutputs) {
-    const initialOutputs = model.getOutputs(t, state);
-    for (const scopeId of model.scopeBlockIds) {
-      scopes[scopeId][0] = 0; // will be filled by getOutputs logic
-    }
+  // Initialize scope traces at t=0
+  for (const scopeId of model.scopeBlockIds) {
+    scopes[scopeId][0] = 0;
   }
 
   for (let step = 0; step < numSteps; step++) {
@@ -75,12 +72,9 @@ export function solve(
       }
     }
 
-    // Capture scope traces
+    // Capture scope traces (TODO: wire getOutputs → scope input mapping)
     if (model.getOutputs) {
-      const outputs = model.getOutputs(t, state);
-      for (const scopeId of model.scopeBlockIds) {
-        // TODO: compiler should expose a getScopeValues function
-      }
+      model.getOutputs(t, state);
     }
 
     // Update previous-step outputs for next step's feedback edges
