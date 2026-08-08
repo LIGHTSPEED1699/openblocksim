@@ -86,6 +86,7 @@ export function DiagramCanvas() {
   const selectBlock = useDiagramStore((s) => s.selectBlock);
   const addNode = useDiagramStore((s) => s.addNode);
   const removeNode = useDiagramStore((s) => s.removeNode);
+  const theme = useDiagramStore((s) => s.theme);
   const { screenToFlowPosition } = useReactFlow();
 
   const onNodesChange = useCallback(
@@ -150,6 +151,7 @@ export function DiagramCanvas() {
         nodeTypes={nodeTypes}
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
+        colorMode={theme}
       >
         <Background />
         <Controls />
