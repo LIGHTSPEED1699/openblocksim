@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
 import { useDiagramStore } from './store/diagramStore';
 import { BlockLibrary } from './components/BlockLibrary';
 import { DiagramCanvas } from './components/DiagramCanvas';
@@ -96,7 +97,9 @@ export default function App() {
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />
-        <DiagramCanvas />
+        <ReactFlowProvider>
+          <DiagramCanvas />
+        </ReactFlowProvider>
         <ParameterPanel
           selectedBlockId={selectedBlockId}
           blockType={selectedType}
