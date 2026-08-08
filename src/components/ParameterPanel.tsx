@@ -106,10 +106,14 @@ export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }:
                 type="text"
                 value={Array.isArray(value) ? value.join(', ') : String(value)}
                 onChange={(e) => {
-                  const parts = e.target.value.split(',').map((s) => s.trim());
-                  const arr = parts.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
-                  if (arr.length > 0) {
-                    onUpdate(selectedBlockId, { [key]: arr });
+                  const raw = e.target.value;
+                  const parts = raw.split(',').map((s) => s.trim());
+                  // Allow intermediate states like "-" or "1, " or "" — just skip update
+                  if (parts.every((s) => s === '' || !isNaN(parseFloat(s)))) {
+                    const arr = parts.map((s) => parseFloat(s)).filter((n) => !isNaN(n));
+                    if (arr.length > 0) {
+                      onUpdate(selectedBlockId, { [key]: arr });
+                    }
                   }
                 }}
                 className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
