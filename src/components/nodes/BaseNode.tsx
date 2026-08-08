@@ -33,7 +33,7 @@ const ICONS: Record<string, string> = {
   PID: 'PID',
   Relay: '⇌',
   // Sinks
-  Scope: '📊',
+  Scope: '⊘',
   ToWorkspace: 'W',
 };
 

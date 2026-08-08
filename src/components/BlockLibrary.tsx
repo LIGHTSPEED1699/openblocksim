@@ -6,7 +6,7 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.Ramp]: '╱',
   [BlockType.Sine]: '∿',
   [BlockType.Square]: '⊓',
-  [BlockType.Scope]: '📊',
+  [BlockType.Scope]: '⊘',
   [BlockType.ToWorkspace]: 'W',
   [BlockType.Sum]: 'Σ',
   [BlockType.Gain]: '×',
