@@ -124,6 +124,9 @@ describe('importModel', () => {
     expect(state.nodes[3].type).toBe('Linear');
     expect(state.nodes[4].type).toBe('Nonlinear');
     expect(state.nodes[5].type).toBe('Control');
+    // PID (ISA form): 2 inputs (error + PV), 1 output
+    expect(state.nodes[5].data.inputs).toBe(2);
+    expect(state.nodes[5].data.outputs).toBe(1);
   });
 
   it('handles unknown block type gracefully (falls back to Math category)', async () => {

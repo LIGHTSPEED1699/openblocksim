@@ -94,7 +94,7 @@ const TYPE_IO: Record<string, { inputs: number; outputs: number }> = {
   Integrator: { inputs: 1, outputs: 1 }, Derivative: { inputs: 1, outputs: 1 },
   TransportDelay: { inputs: 1, outputs: 1 },
   Saturation: { inputs: 1, outputs: 1 }, Deadzone: { inputs: 1, outputs: 1 },
-  PID: { inputs: 1, outputs: 1 }, Relay: { inputs: 1, outputs: 1 },
+  PID: { inputs: 2, outputs: 1 }, Relay: { inputs: 1, outputs: 1 },
 };
 
 const CATEGORY_FOR_TYPE: Record<string, BlockCategory> = {
