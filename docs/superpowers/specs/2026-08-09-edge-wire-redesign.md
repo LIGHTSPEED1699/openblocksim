@@ -162,8 +162,26 @@ The overlay component + DiagramCanvas wiring owns the wire-drawing interaction e
 
 1. **Start** — `onConnectStart` fires from React Flow's handle drag (user pressed a source handle). DiagramCanvas records `source` (`nodeId`/`handleId` from React Flow's params), calls `wireGesture.set({ active: true, source })`, and mounts `<WireOverlay />`. The overlay's `onPointerDown` calls `overlay.setPointerCapture(e.pointerId)` — the last `setPointerCapture` call wins, so this redirects all subsequent pointer events to our overlay.
 2. **Move** — overlay `onPointerMove`: `wireGesture.set({ cursor: screenToFlowPosition(e) })`; preview re-renders via the store subscription.
-3. **Plant** — overlay `onPointerDown` (a fresh press while the wire is in progress): `planted.push(screenToFlowPosition(e))`. The wire **stays in-progress** after this press+release — planting is click-based, not hold-based (see §2).
-4. **Complete** — overlay `onPointerUp` where `document.elementFromPoint(e.clientX, e.clientY)` hits a target `Handle`: resolve node/handle ids from the element's `data-nodeid` / `data-handleid` attributes (React Flow sets both on handle elements), build `connection = { source, target, sourceHandle, targetHandle }`, create the edge via `setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, edges))` where `waypoints = planted.length > 0 ? planted : feedbackHeuristic(...)` (see §6.4b), then `wireGesture.reset()`. **Pitfall:** `elementFromPoint` may return the overlay's own DOM rather than the Handle underneath if the overlay's z-order or `pointer-events` stacking is wrong. The overlay's background div must have `pointerEvents: 'none'` during the completion check, or the implementation may need to briefly hide the overlay, call `elementFromPoint`, then restore it. The task-0 spike must verify this works in React Flow v12 before committing to this approach.
+3. **Plant** — overlay `onPointerDown` (a fresh press while the wire is in progress): first check `document.elementFromPoint(e.clientX, e.clientY)` with the same temporary `pointerEvents: 'none'` dance as completion — if it hits a target `Handle`, **complete immediately** (see step 4; this prevents a stray vertex being planted at the handle position when the user clicks directly on the target port); otherwise `planted.push(screenToFlowPosition(e))`. The wire **stays in-progress** after this press+release — planting is click-based, not hold-based (see §2).
+4. **Complete** — overlay `onPointerUp` where `document.elementFromPoint(e.clientX, e.clientY)` hits a target `Handle`: resolve node/handle ids from the element's `data-nodeid` / `data-handleid` attributes (React Flow sets both on handle elements), build `connection = { source, target, sourceHandle, targetHandle }`, and call the shared **`completeConnection(connection)`** (see below), then `wireGesture.reset()`. **Pitfall:** `elementFromPoint` may return the overlay's own DOM rather than the Handle underneath if the overlay's z-order or `pointer-events` stacking is wrong. The overlay's background div must have `pointerEvents: 'none'` during the check (temporarily set → check → restore), or the implementation may need to briefly hide the overlay, call `elementFromPoint`, then restore it. The task-0 spike must verify this works in React Flow v12 before committing to this approach.
+
+**`completeConnection(connection)` — single shared completion path (prevents double-creation race):** Both the overlay completion (step 4) and React Flow's own `onConnect` (which still fires when the user drags directly handle-to-handle without any click-plant, since React Flow's native connection is alive) funnel through one function:
+
+```
+function completeConnection(connection) {
+  if (completedRef.current) return;              // whichever path runs first wins
+  completedRef.current = true;
+  const s = wireGesture.get();
+  const waypoints = s.planted.length > 0
+    ? s.planted
+    : feedbackHeuristic(connection);              // see §6.4b; [] for forward edges
+  setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, edges));
+  wireGesture.reset();
+}
+```
+
+- `completedRef` is set in `completeConnection` itself, and cleared on cancel/teardown. React Flow's `onConnect` handler in DiagramCanvas becomes: `if (!wireGesture.get().active) return; completeConnection(connection);` — the active check is defensive (the overlay mounts on `onConnectStart`, so it is always active, but guards stale gesture state).
+- This closes the race the other way: if React Flow's `onConnect` fires before the overlay's pointerup (direct drag to target), it still gets the feedback heuristic / planted waypoints because the waypoint computation lives inside the shared function.
 5. **Cancel** — `Escape` keydown (window listener while `active`) or overlay `onDoubleClick` (double-click on empty canvas): discard `planted`, `wireGesture.reset()`.
 6. **Teardown safety net** — `onConnectEnd` (React Flow, fires on its own pointerup) is treated as a no-op if we already completed or cancelled; if it fires while `active` with no completion (React Flow's internal state cleared the gesture), `wireGesture.reset()` to avoid a stuck overlay.
 
@@ -231,7 +249,8 @@ setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, e
 | Node drag after auto-route | Waypoints are absolute; wire does not follow (documented v1 limitation, matches shipped behavior). |
 | Export → import round trip | Waypoints survive. |
 | Zoomed far out, grabbing a wire | Screen-space threshold keeps grab area constant. |
-| React Flow's native connection state fires during our gesture | Ignored; completion and cancellation are ours. `onConnectEnd` is a teardown safety net only. DiagramCanvas's `onConnect` must guard against double-creation: skip if the overlay already created the edge (track via a `completedRef` flag set in the completion path, cleared on cancel/teardown). |
+| React Flow's native connection state fires during our gesture | Ignored except for completion: React Flow's `onConnect` and the overlay's pointerup both funnel into the shared `completeConnection()`, which checks-and-sets `completedRef` so exactly one edge is created (whichever path runs first wins). Waypoint computation lives inside `completeConnection`, so the React Flow-first race (direct drag to target) still gets the feedback heuristic / planted vertices. `onConnectEnd` is a teardown safety net only. `completedRef` cleared on cancel/teardown. |
+| Click on a node body (not a handle) while a wire is in progress | Plants a vertex on top of the node — accepted for v1 (Simulink allows corners anywhere); no hit-testing against node bodies. |
 
 ## 8. Testing
 
