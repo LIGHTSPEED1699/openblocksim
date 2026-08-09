@@ -83,6 +83,18 @@ export const useDiagramStore = create<DiagramState>()(
         simConfig: state.simConfig,
         theme: state.theme,
       }),
+      onRehydrateStorage: (state: DiagramState) => {
+        if (!state.edges) return;
+        state.edges = state.edges.map((edge: Edge) =>
+          edge.type !== 'straight'
+            ? {
+                ...edge,
+                type: 'straight',
+                data: { ...(edge.data as Record<string, unknown>), waypoints: (edge.data as Record<string, unknown>)?.waypoints ?? [] },
+              }
+            : edge,
+        );
+      },
     }
   )
 );
