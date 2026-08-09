@@ -80,12 +80,16 @@ All functions take/return the **expanded vertex list** (`V = [source, ...waypoin
 ```
 expandPoints(waypoints: XYPosition[], sourcePos: XYPosition, targetPos: XYPosition): XYPosition[]
   - waypoints = the edge's stored waypoints (edge.data.waypoints). Source/target port coordinates are passed separately.
-  - Internally constructs V = [sourcePos, ...waypoints, targetPos].
-  - Returns the full rendered vertex list.
-  - waypoints non-empty → just [sourcePos, ...waypoints, targetPos] (each consecutive pair is already axis-aligned).
+  - Returns the full rendered vertex list. Every consecutive pair in the result is axis-aligned.
   - waypoints empty, same y → [sourcePos, targetPos].
-  - waypoints empty, different y → [sourcePos, midpointJog, targetPos] where midpointJog = ((sx+tx)/2, sy) —
-    horizontal out of source, vertical at midpoint, horizontal into target.
+  - waypoints empty, different y → [sourcePos, jogA, jogB, targetPos] where
+    jogA = ((sx+tx)/2, sy), jogB = ((sx+tx)/2, ty) — horizontal out of source, vertical at midpoint, horizontal into target.
+    (TWO jog vertices are required: a single midpoint vertex would leave the source→jog and jog→target
+    segments diagonal. The 3-segment jog needs 4 vertices.)
+  - waypoints non-empty → walk [sourcePos, ...waypoints, targetPos] in order; for each consecutive pair
+    (a, b) that is NOT already axis-aligned, insert an elbow vertex at (b.x, a.y) (horizontal-first:
+    horizontal out of a, then vertical into b). This handles free bend points created by dragging the
+    middle of a straight segment, which are not aligned with either port.
 
 buildOrthogonalPath(V: XYPosition[]): string
   - Produces SVG path: straight axis-aligned segments through consecutive vertices.
@@ -97,12 +101,14 @@ hitTestSegment(V: XYPosition[], cursor: XYPosition, threshold: number): number |
 insertWaypoint(V: XYPosition[], segmentIndex: number, pos: XYPosition): XYPosition[]
   - Inserts pos between V[segmentIndex] and V[segmentIndex+1] (as a waypoint).
   - Orthogonalizes: snap pos to the segment axis (horizontal segment → cursor x, keep y; vertical → cursor y, keep x).
+  - The inserted waypoint is stored as-is (possibly free/unelbowed); expandPoints adds elbows at render time.
 
 translateSegment(V: XYPosition[], segmentIndex: number, delta: XYPosition): XYPosition[]
   - Moves the segment perpendicular to its axis by the drag delta.
   - Segment between two vertices (both are waypoints or jog vertices): both endpoint vertices move by delta; outer anchors stay.
   - Segment with a vertex on only one end (adjacent to source/target): that interior vertex moves by delta.
   - Jog vertices participate exactly like waypoints; after a drag the expanded list is materialized back into waypoints.
+  - The delta is applied to interior vertices only; source/target vertices (index 0 and last) never move.
 
 removeWaypoint(waypoints: XYPosition[], waypointIndex: number): XYPosition[]
   - Removes the waypoint; remaining waypoints reconnect straight between neighbors.
@@ -156,7 +162,13 @@ Pointer events on the **hit path**:
 
 ### 6.3 Export/Import
 
-- Waypoints live in `edge.data`, which is already serialized by the existing JSON export/import utilities. No changes needed (verify with a test).
+Waypoints live in `edge.data`, which is **not** currently serialized: `src/utils/exportImport.ts` only exports `{id, source, sourcePort, target, targetPort}` per edge, and `importModel` rebuilds edges from scratch without `type` or `data`. Both sides need updating:
+
+- **`exportModel`:** include `type: 'straight'` and `waypoints: edge.data?.waypoints ?? []` in each exported edge.
+- **`importModel`:** recreate edges as `{ id, source, target, sourceHandle, targetHandle, type: 'straight', data: { waypoints: e.waypoints ?? [] } }`.
+- The `ExportedModel` edge type gains optional `waypoints: XYPosition[]`.
+
+This makes waypoints survive JSON export → import round trips, per acceptance criteria §9.5. The old `{id, source, sourcePort, target, targetPort}` shape is preserved for backward compatibility (import defaults missing waypoints to `[]`).
 
 ### 6.4 ConnectionLine
 
