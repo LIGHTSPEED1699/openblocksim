@@ -1,6 +1,6 @@
 import {
   BaseEdge,
-  useStore,
+  useReactFlow,
   type EdgeProps,
   type XYPosition,
 } from '@xyflow/react';
@@ -52,7 +52,7 @@ export function StraightEdge({
     mode: 'translate' | 'bend';
   } | null>(null);
 
-  const store = useStore();
+  const { screenToFlowPosition } = useReactFlow();
 
   const updateEdgeWaypoints = useCallback(
     (newWaypoints: XYPosition[]) => {
@@ -72,10 +72,10 @@ export function StraightEdge({
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      const flowPos = (store.getState() as any).screenToFlowPosition?.({
+      const flowPos = screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
-      }) ?? { x: e.clientX, y: e.clientY };
+      });
 
       let currentV = V;
       const segmentIndex = hitTestSegment(currentV, flowPos, HIT_THRESHOLD);
@@ -93,9 +93,7 @@ export function StraightEdge({
       const hasInteriorStart = segmentIndex > 0;
       const hasInteriorEnd = segmentIndex + 1 < currentV.length - 1;
 
-      let mode: 'translate' | 'bend';
       if (!hasInteriorStart && !hasInteriorEnd) {
-        mode = 'bend';
         currentV = insertWaypoint(currentV, segmentIndex, flowPos);
         updateEdgeWaypoints(materializeWaypoints(currentV));
         dragRef.current = {
@@ -105,8 +103,7 @@ export function StraightEdge({
           mode: 'translate',
         };
       } else {
-        mode = 'translate';
-        dragRef.current = { V: currentV, segmentIndex, isHorizontal, mode };
+        dragRef.current = { V: currentV, segmentIndex, isHorizontal, mode: 'translate' };
       }
 
       (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -121,7 +118,7 @@ export function StraightEdge({
         );
       }
     },
-    [id, V, waypoints, sourcePos, targetPos, store, updateEdgeWaypoints],
+    [id, V, waypoints, sourcePos, targetPos, screenToFlowPosition, updateEdgeWaypoints]
   );
 
   const onPointerMove = useCallback(
@@ -129,10 +126,10 @@ export function StraightEdge({
       const dr = dragRef.current;
       if (!dr) return;
 
-      const flowPos = (store.getState() as any).screenToFlowPosition?.({
+      const flowPos = screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
-      }) ?? { x: e.clientX, y: e.clientY };
+      });
 
       const a = dr.V[dr.segmentIndex];
       const delta: XYPosition = dr.isHorizontal
@@ -144,7 +141,7 @@ export function StraightEdge({
 
       updateEdgeWaypoints(materializeWaypoints(newV));
     },
-    [store, updateEdgeWaypoints],
+    [screenToFlowPosition, updateEdgeWaypoints],
   );
 
   const onPointerUp = useCallback(() => {

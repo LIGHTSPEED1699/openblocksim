@@ -5,6 +5,7 @@ import {
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
+  reconnectEdge,
   useReactFlow,
   type Connection,
   type Node,
@@ -16,6 +17,7 @@ import '@xyflow/react/dist/style.css';
 import { useCallback } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { BlockType, BlockCategory, type BlockFactory } from '../blocks/types';
+import { StraightEdge } from './edges/StraightEdge';
 import { SourceNode } from './nodes/SourceNode';
 import { SinkNode } from './nodes/SinkNode';
 import { MathNode } from './nodes/MathNode';
@@ -73,6 +75,10 @@ const nodeTypes = {
   Control: ControlNode,
 };
 
+const edgeTypes = {
+  straight: StraightEdge,
+};
+
 function blockMeta(type: BlockType): { inputs: number; outputs: number; category: BlockCategory } {
   const block = FACTORIES[type].create();
   return { inputs: block.inputs, outputs: block.outputs, category: block.category };
@@ -106,7 +112,7 @@ export function DiagramCanvas() {
   const onConnect = useCallback(
     (connection: Connection) => {
       setEdges(addEdge(
-        { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}`, type: 'default' },
+        { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}`, type: 'straight', data: { waypoints: [] } },
         edges
       ) as Edge[]);
     },
@@ -115,14 +121,9 @@ export function DiagramCanvas() {
 
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
-      const updated = edges.map((e) =>
-        e.id === oldEdge.id
-          ? { ...e, source: newConnection.source!, target: newConnection.target!, sourceHandle: newConnection.sourceHandle, targetHandle: newConnection.targetHandle }
-          : e
-      );
-      setEdges(updated);
+      setEdges(reconnectEdge(oldEdge, newConnection, edges) as Edge[]);
     },
-    [edges, setEdges]
+    [edges, setEdges],
   );
 
   const onDrop = useCallback(
@@ -162,12 +163,15 @@ export function DiagramCanvas() {
         onNodeClick={(_, node) => selectBlock(node.id)}
         onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
         colorMode={theme}
         edgesFocusable
+        edgesReconnectable
         nodesDraggable
-        reconnectRadius={30}
+        defaultEdgeOptions={{ type: 'straight' }}
+        connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
       >
         <Background />
         <Controls />
