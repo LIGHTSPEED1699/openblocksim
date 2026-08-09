@@ -121,9 +121,10 @@ export function DiagramCanvas() {
 
   const onReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
-      setEdges(reconnectEdge(oldEdge, newConnection, edges) as Edge[]);
+      const currentEdges = useDiagramStore.getState().edges;
+      setEdges(reconnectEdge(oldEdge, newConnection, currentEdges) as Edge[]);
     },
-    [edges, setEdges],
+    [setEdges],
   );
 
   const onDrop = useCallback(
