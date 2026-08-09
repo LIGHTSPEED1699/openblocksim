@@ -98,12 +98,14 @@ computeFeedbackRoute(
   sourcePort: XYPosition, targetPort: XYPosition,
   sourceBottom: number, targetBottom: number, clearance = 60
 ): XYPosition[]
-  - Builds the downward U-shape:
-      [{ x: sourcePort.x + clearance, y: sourcePort.y },        // horizontal out of source
+  - Builds the downward U-shape interior vertices (source and target are implicit
+    via expandPoints, so they are NOT included in the returned waypoint array):
+      [{ x: sourcePort.x + clearance, y: sourcePort.y },        // right out of source
        { x: sourcePort.x + clearance, y: bottomY },             // down
        { x: targetPort.x - clearance, y: bottomY },             // across below blocks
-       { x: targetPort.x - clearance, y: targetPort.y },        // up
-       { x: targetPort.x, y: targetPort.y }]                    // horizontal into target
+       { x: targetPort.x - clearance, y: targetPort.y }]        // up to target level
+  - The full expanded vertex list (source + waypoints + target) is 6 vertices:
+    [sourcePort, wp[0], wp[1], wp[2], wp[3], targetPort] — a 5-segment U-shape.
   - bottomY = max(sourceBottom, targetBottom) + clearance
   - sourceBottom = sourceNode.position.y + measuredHeight (fallback 40)
   - Returns exactly the stored waypoints (edge.data.waypoints) — NOT the expanded
@@ -161,7 +163,7 @@ The overlay component + DiagramCanvas wiring owns the wire-drawing interaction e
 1. **Start** — `onConnectStart` fires from React Flow's handle drag (user pressed a source handle). DiagramCanvas records `source` (`nodeId`/`handleId` from React Flow's params), calls `wireGesture.set({ active: true, source })`, and mounts `<WireOverlay />`. The overlay's `onPointerDown` calls `overlay.setPointerCapture(e.pointerId)` — the last `setPointerCapture` call wins, so this redirects all subsequent pointer events to our overlay.
 2. **Move** — overlay `onPointerMove`: `wireGesture.set({ cursor: screenToFlowPosition(e) })`; preview re-renders via the store subscription.
 3. **Plant** — overlay `onPointerDown` (a fresh press while the wire is in progress): `planted.push(screenToFlowPosition(e))`. The wire **stays in-progress** after this press+release — planting is click-based, not hold-based (see §2).
-4. **Complete** — overlay `onPointerUp` where `document.elementFromPoint(e.clientX, e.clientY)` hits a target `Handle`: resolve node/handle ids from the element's `data-nodeid` / `data-handleid` attributes (React Flow sets both on handle elements), build `connection = { source, target, sourceHandle, targetHandle }`, create the edge via `setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, edges))` where `waypoints = planted.length > 0 ? planted : feedbackHeuristic(...)` (see §6.4b), then `wireGesture.reset()`.
+4. **Complete** — overlay `onPointerUp` where `document.elementFromPoint(e.clientX, e.clientY)` hits a target `Handle`: resolve node/handle ids from the element's `data-nodeid` / `data-handleid` attributes (React Flow sets both on handle elements), build `connection = { source, target, sourceHandle, targetHandle }`, create the edge via `setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, edges))` where `waypoints = planted.length > 0 ? planted : feedbackHeuristic(...)` (see §6.4b), then `wireGesture.reset()`. **Pitfall:** `elementFromPoint` may return the overlay's own DOM rather than the Handle underneath if the overlay's z-order or `pointer-events` stacking is wrong. The overlay's background div must have `pointerEvents: 'none'` during the completion check, or the implementation may need to briefly hide the overlay, call `elementFromPoint`, then restore it. The task-0 spike must verify this works in React Flow v12 before committing to this approach.
 5. **Cancel** — `Escape` keydown (window listener while `active`) or overlay `onDoubleClick` (double-click on empty canvas): discard `planted`, `wireGesture.reset()`.
 6. **Teardown safety net** — `onConnectEnd` (React Flow, fires on its own pointerup) is treated as a no-op if we already completed or cancelled; if it fires while `active` with no completion (React Flow's internal state cleared the gesture), `wireGesture.reset()` to avoid a stuck overlay.
 
@@ -229,7 +231,7 @@ setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, e
 | Node drag after auto-route | Waypoints are absolute; wire does not follow (documented v1 limitation, matches shipped behavior). |
 | Export → import round trip | Waypoints survive. |
 | Zoomed far out, grabbing a wire | Screen-space threshold keeps grab area constant. |
-| React Flow's native connection state fires during our gesture | Ignored; completion/cancel are ours. `onConnectEnd` is a teardown safety net only. |
+| React Flow's native connection state fires during our gesture | Ignored; completion and cancellation are ours. `onConnectEnd` is a teardown safety net only. DiagramCanvas's `onConnect` must guard against double-creation: skip if the overlay already created the edge (track via a `completedRef` flag set in the completion path, cleared on cancel/teardown). |
 
 ## 8. Testing
 
@@ -237,7 +239,7 @@ setEdges(addEdge({ ...connection, id, type: 'straight', data: { waypoints } }, e
 
 1. `isBackwardEdge`: source right of target → true; source left → false; equal x → false.
 2. `nodePortPosition`: left/right edge x, topPct y formula, measured vs fallback dims.
-3. `computeFeedbackRoute`: full U-shape for simple case (assert all 5 waypoints), bottomY = max(bottoms) + clearance, horizontal-in/out segments, clearance respected.
+3. `computeFeedbackRoute`: full U-shape for simple case (assert 4 waypoints), bottomY = max(bottoms) + clearance, expanding with source+target produces 6-vertex path.
 
 ### 8.2 Unit — `tests/components/wireGesture.test.ts` (new)
 
@@ -264,7 +266,7 @@ The existing mock `ReactFlow` captures props; extend to drive the gesture wiring
 
 1. Fire the mocked `ReactFlow`'s `onConnectStart` → assert `wireGesture.get().active === true` and overlay mounted.
 2. Dispatch `pointerdown` on the overlay → `planted` grows; dispatch `pointerup` over a mocked target handle element (stubbed `document.elementFromPoint`) → assert `setEdges` called with `data.waypoints` = planted vertices.
-3. Completion with no planted vertices and source-right-of-target nodes → `data.waypoints` is the U-route (non-empty, 5 points).
+3. Completion with no planted vertices and source-right-of-target nodes → `data.waypoints` is the U-route (non-empty, 4 waypoints).
 4. Completion with forward nodes and no planted vertices → `waypoints: []`.
 5. `Escape` keydown → `wireGesture.reset()` called (overlay unmounted).
 
