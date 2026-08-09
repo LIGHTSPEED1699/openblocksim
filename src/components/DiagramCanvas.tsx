@@ -113,6 +113,18 @@ export function DiagramCanvas() {
     [edges, setEdges]
   );
 
+  const onReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      const updated = edges.map((e) =>
+        e.id === oldEdge.id
+          ? { ...e, source: newConnection.source!, target: newConnection.target!, sourceHandle: newConnection.sourceHandle, targetHandle: newConnection.targetHandle }
+          : e
+      );
+      setEdges(updated);
+    },
+    [edges, setEdges]
+  );
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -146,6 +158,7 @@ export function DiagramCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onReconnect={onReconnect}
         onNodeClick={(_, node) => selectBlock(node.id)}
         onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
@@ -154,6 +167,7 @@ export function DiagramCanvas() {
         colorMode={theme}
         edgesFocusable
         nodesDraggable
+        reconnectRadius={30}
       >
         <Background />
         <Controls />
