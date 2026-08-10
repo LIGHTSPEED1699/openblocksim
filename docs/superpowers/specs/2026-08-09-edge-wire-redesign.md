@@ -316,6 +316,16 @@ All 157 tests stay green. Existing `edges.spec.ts` cases (orthogonal rendering, 
 7. Waypoints survive JSON export → import.
 8. All 157 existing + new tests pass; `npm run build` passes.
 
+## 9.1 Spike Findings (Task 0, 2026-08-09)
+
+Verified WireOverlay pointer-capture + elementFromPoint against React Flow v12 (`@xyflow/react ^12.11`):
+
+- **A) setPointerCapture redirect:** YES. Per the Pointer Events spec, the most recent `setPointerCapture` call for a `pointerId` wins. React Flow v12 captures on the source Handle during connection drag; our overlay's `onPointerDownCapture` calls `setPointerCapture` *after* that, retargeting all subsequent pointer events to the overlay. Implementation guard: overlay uses the capture phase.
+- **B) elementFromPoint Handle detection:** YES with the `pointerEvents:'none'` dance. `elementFromPoint` honors `pointer-events`; the overlay sets its own style to `'none'`, calls `elementFromPoint`, restores to `'all'`. React Flow v12 renders Handle elements with `data-handleid` and parent nodes with `data-id`, so `closest('[data-handleid]')` + `closest('[data-id]')` resolves ids reliably.
+- **C) onConnectEnd double-edge race:** YES, `onConnectEnd` still fires. Therefore the `completedRef` guard is essential: both the overlay's `completeWire` and React Flow's `onConnect` funnel into one `completeConnection()` that checks-and-sets `completedRef` so exactly one edge is created.
+
+Conclusion: proceed with the WireOverlay + `completedRef` design as specified. Spike file deleted after findings recorded.
+
 ## 10. Open Questions / Decisions Recorded
 
 | Question | Decision |
