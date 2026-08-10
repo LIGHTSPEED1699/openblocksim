@@ -104,3 +104,42 @@ export function removeWaypoint(
 ): XYPosition[] {
   return waypoints.filter((_, i) => i !== waypointIndex);
 }
+
+export function isBackwardEdge(
+  sourceNode: { position: { x: number; y: number } },
+  targetNode: { position: { x: number; y: number } },
+): boolean {
+  return sourceNode.position.x > targetNode.position.x;
+}
+
+export function nodePortPosition(
+  node: {
+    position: { x: number; y: number };
+    measured?: { width?: number; height?: number };
+  },
+  portIndex: number,
+  totalPorts: number,
+  isSource: boolean,
+): XYPosition {
+  const w = node.measured?.width ?? 100;
+  const h = node.measured?.height ?? 40;
+  const x = isSource ? node.position.x + w : node.position.x;
+  const y = node.position.y + ((portIndex + 1) / (totalPorts + 1)) * h;
+  return { x, y };
+}
+
+export function computeFeedbackRoute(
+  sourcePort: XYPosition,
+  targetPort: XYPosition,
+  sourceBottom: number,
+  targetBottom: number,
+  clearance: number = 60,
+): XYPosition[] {
+  const bottomY = Math.max(sourceBottom, targetBottom) + clearance;
+  return [
+    { x: sourcePort.x + clearance, y: sourcePort.y },
+    { x: sourcePort.x + clearance, y: bottomY },
+    { x: targetPort.x - clearance, y: bottomY },
+    { x: targetPort.x - clearance, y: targetPort.y },
+  ];
+}
