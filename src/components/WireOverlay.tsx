@@ -123,14 +123,6 @@ export function WireOverlay({ onComplete, onCancel }: Props) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [cancelWire]);
 
-  useEffect(() => {
-    return () => {
-      if (!completedRef.current) {
-        wireGesture.reset();
-      }
-    };
-  }, []);
-
   return (
     <div
       style={{
