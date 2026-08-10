@@ -14,10 +14,14 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { BlockType, BlockCategory, type BlockFactory } from '../blocks/types';
 import { StraightEdge } from './edges/StraightEdge';
+import { ConnectionPreview } from './ConnectionPreview';
+import { WireOverlay } from './WireOverlay';
+import { wireGesture } from './edges/wireGesture';
+import { isBackwardEdge, nodePortPosition, computeFeedbackRoute } from './edges/geometry';
 import { SourceNode } from './nodes/SourceNode';
 import { SinkNode } from './nodes/SinkNode';
 import { MathNode } from './nodes/MathNode';
@@ -93,7 +97,75 @@ export function DiagramCanvas() {
   const addNode = useDiagramStore((s) => s.addNode);
   const removeNode = useDiagramStore((s) => s.removeNode);
   const theme = useDiagramStore((s) => s.theme);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNode } = useReactFlow();
+  const [wireActive, setWireActive] = useState(false);
+
+  const parsePortIndex = useCallback(
+    (handleId: string | null | undefined) =>
+      parseInt((handleId ?? '').split('-').pop() ?? '0', 10) || 0,
+    [],
+  );
+
+  const onConnectStart = useCallback(
+    (_event: any, params: { nodeId: string | null; handleId: string | null }) => {
+      if (!params.handleId || !params.nodeId) return;
+      wireGesture.set({ active: true, source: { nodeId: params.nodeId, handleId: params.handleId }, planted: [], cursor: null });
+      setWireActive(true);
+    },
+    [],
+  );
+
+  const onConnectEnd = useCallback(() => {
+    // Safety net only. Do NOT reset here: click-to-plant needs the gesture to
+    // persist after the initial drag's pointerup. Cancellation is explicit
+    // (Escape / double-click via WireOverlay).
+  }, []);
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      // Race guard: React Flow's native onConnect may fire when the user drags
+      // directly handle-to-handle. Only handle completion if our gesture is
+      // active AND not already completed via WireOverlay.
+      const gesture = wireGesture.get();
+      if (!gesture.active || !gesture.source) {
+        // Fallback: no overlay gesture (e.g. overlay not mounted). Use old path.
+        setEdges(addEdge(
+          { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}`, type: 'straight', data: { waypoints: [] } },
+          edges
+        ) as Edge[]);
+        return;
+      }
+      if (gesture.source.nodeId === connection.source && gesture.source.handleId === connection.sourceHandle) {
+        // Confirmed source matches — complete via the feedback heuristic path,
+        // guarded by wireGesture.active so WireOverlay won't double-create.
+        const srcNode = getNode(connection.source!);
+        const tgtNode = getNode(connection.target!);
+        let waypoints = gesture.planted;
+        if (waypoints.length === 0 && srcNode && tgtNode && isBackwardEdge(srcNode, tgtNode)) {
+          const srcPortIdx = parsePortIndex(connection.sourceHandle);
+          const tgtPortIdx = parsePortIndex(connection.targetHandle);
+          const srcPort = nodePortPosition(srcNode, srcPortIdx, (srcNode.data as any)?.outputs ?? 1, true);
+          const tgtPort = nodePortPosition(tgtNode, tgtPortIdx, (tgtNode.data as any)?.inputs ?? 1, false);
+          const srcBottom = srcNode.position.y + (srcNode.measured?.height ?? 40);
+          const tgtBottom = tgtNode.position.y + (tgtNode.measured?.height ?? 40);
+          waypoints = computeFeedbackRoute(srcPort, tgtPort, srcBottom, tgtBottom);
+        }
+        const newEdge = {
+          ...connection,
+          id: `e-${connection.source}-${connection.target}-${Date.now()}`,
+          type: 'straight' as const,
+          data: { waypoints },
+        };
+        setEdges(addEdge(newEdge, edges) as Edge[]);
+        wireGesture.set({ active: false, source: null, planted: [], cursor: null, pointerId: null });
+        setWireActive(false);
+      }
+    },
+    [edges, setEdges, getNode, parsePortIndex],
+  );
+
+  const handleWireComplete = useCallback(() => setWireActive(false), []);
+  const handleWireCancel = useCallback(() => setWireActive(false), []);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -105,16 +177,6 @@ export function DiagramCanvas() {
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdges(applyEdgeChanges(changes, edges) as Edge[]);
-    },
-    [edges, setEdges]
-  );
-
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      setEdges(addEdge(
-        { ...connection, id: `e-${connection.source}-${connection.target}-${Date.now()}`, type: 'straight', data: { waypoints: [] } },
-        edges
-      ) as Edge[]);
     },
     [edges, setEdges]
   );
@@ -160,6 +222,8 @@ export function DiagramCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
         onReconnect={onReconnect}
         onNodeClick={(_, node) => selectBlock(node.id)}
         onNodesDelete={onNodesDelete}
@@ -172,11 +236,13 @@ export function DiagramCanvas() {
         edgesReconnectable
         nodesDraggable
         defaultEdgeOptions={{ type: 'straight' }}
+        connectionLineComponent={ConnectionPreview}
         connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
       >
         <Background />
         <Controls />
       </ReactFlow>
+      {wireActive && <WireOverlay onComplete={handleWireComplete} onCancel={handleWireCancel} />}
     </div>
   );
 }
