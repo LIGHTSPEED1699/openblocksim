@@ -317,7 +317,6 @@ All 157 tests stay green. Existing `edges.spec.ts` cases (orthogonal rendering, 
 8. All 157 existing + new tests pass; `npm run build` passes.
 
 ## 9.1 Spike Findings (Task 0, 2026-08-09)
-
 Verified WireOverlay pointer-capture + elementFromPoint against React Flow v12 (`@xyflow/react ^12.11`):
 
 - **A) setPointerCapture redirect:** YES. Per the Pointer Events spec, the most recent `setPointerCapture` call for a `pointerId` wins. React Flow v12 captures on the source Handle during connection drag; our overlay's `onPointerDownCapture` calls `setPointerCapture` *after* that, retargeting all subsequent pointer events to the overlay. Implementation guard: overlay uses the capture phase.
@@ -336,3 +335,20 @@ Conclusion: proceed with the WireOverlay + `completedRef` design as specified. S
 | Approach | A — store-driven waypoints + custom connection line (user) |
 | Re-route on node move | No (v1 limitation; matches shipped behavior) |
 | Full obstacle-avoidance routing | v2 candidate |
+
+## 11. Final Verification (Task 11, 2026-08-09)
+
+Acceptance checklist results:
+
+- [x] New feedback edge (source right of target) auto-routes with downward U — E2E `feedback edge...auto-routes with downward U` passes.
+- [~] Click canvas mid-wire creates vertex — WireOverlay `onPointerDown` plants; covered by component logic. Click-to-plant E2E omitted (pointer-capture timing is fragile under Playwright synthetic input); manual verification pending.
+- [x] Escape cancels wire — WireOverlay Escape handler + `cancelWire`.
+- [x] Click-drag straight wire creates bend (zoom-independent) — StraightEdge screen-space hit testing via `getZoom`, materialize-on-move.
+- [x] Waypoint handles on hover/select; drag moves; double-click deletes — `showHandles = selected || hovered`, `onPointerMove` translates, `onWaypointDoubleClick` removes.
+- [x] Every edge ends in arrowhead, color-matched to stroke — manual `<defs><marker>` in StraightEdge, color follows `selected`.
+- [x] Connection preview shows arrow while drawing — ConnectionPreview `markerEnd`.
+- [x] Waypoints survive JSON export → import — exportImport round-trip test.
+- [x] All existing + new tests pass — 181 unit + 8 E2E.
+- [x] `npm run build` passes.
+
+Implementation note: WireOverlay's unmount-cleanup gesture reset was removed because React StrictMode's dev double-mount reset the gesture before `onConnect` fired, causing direct-drag feedback edges to fall through to the no-feedback path. Explicit cancel/complete now drive teardown; `onConnectEnd` is a no-op (click-to-plant needs the gesture to persist past the initial drag's release).
