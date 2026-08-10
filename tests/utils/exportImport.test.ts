@@ -142,4 +142,42 @@ describe('importModel', () => {
     expect(node.data.inputs).toBe(1);
     expect(node.data.outputs).toBe(1);
   });
+
+  it('round-trips waypoints through export/import', async () => {
+    const modelWithWaypoints = {
+      blocks: [
+        { id: 'src', type: 'Constant', params: { value: 1 }, position: { x: 300, y: 100 } },
+        { id: 'tgt', type: 'Scope', params: {}, position: { x: 100, y: 100 } },
+      ],
+      edges: [
+        {
+          id: 'e1', source: 'src', sourcePort: 0, target: 'tgt', targetPort: 0,
+          waypoints: [{ x: 350, y: 100 }, { x: 350, y: 200 }, { x: 50, y: 200 }, { x: 50, y: 100 }],
+        },
+      ],
+    };
+    const json = JSON.stringify(modelWithWaypoints);
+    const file = new File([json], 'model.json', { type: 'application/json' });
+    await importModel(file);
+
+    const edge = useDiagramStore.getState().edges[0];
+    expect((edge.data as any).waypoints).toEqual(modelWithWaypoints.edges[0].waypoints);
+    expect(edge.type).toBe('straight');
+  });
+
+  it('imports old-format JSON (no waypoints) with empty array', async () => {
+    const json = JSON.stringify({
+      blocks: [
+        { id: 'src', type: 'Constant', params: {}, position: { x: 0, y: 0 } },
+        { id: 'tgt', type: 'Scope', params: {}, position: { x: 100, y: 0 } },
+      ],
+      edges: [{ id: 'e1', source: 'src', sourcePort: 0, target: 'tgt', targetPort: 0 }],
+    });
+    const file = new File([json], 'old.json', { type: 'application/json' });
+    await importModel(file);
+
+    const edge = useDiagramStore.getState().edges[0];
+    expect((edge.data as any).waypoints).toEqual([]);
+    expect(edge.type).toBe('straight');
+  });
 });
