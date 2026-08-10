@@ -19,6 +19,7 @@ vi.mock('@xyflow/react', async () => {
     ...actual,
     useReactFlow: () => ({
       screenToFlowPosition: vi.fn((p: { x: number; y: number }) => p),
+      getZoom: () => 1,
     }),
   };
 });
