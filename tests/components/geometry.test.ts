@@ -6,6 +6,9 @@ import {
   insertWaypoint,
   translateSegment,
   removeWaypoint,
+  isBackwardEdge,
+  nodePortPosition,
+  computeFeedbackRoute,
 } from '../../src/components/edges/geometry';
 import type { XYPosition } from '@xyflow/react';
 
@@ -209,5 +212,112 @@ describe('removeWaypoint', () => {
   it('removing from already-empty array returns empty', () => {
     const result = removeWaypoint([], 0);
     expect(result).toEqual([]);
+  });
+});
+
+describe('isBackwardEdge', () => {
+  it('true when source is right of target', () => {
+    expect(isBackwardEdge(
+      { position: { x: 300, y: 100 } },
+      { position: { x: 100, y: 100 } },
+    )).toBe(true);
+  });
+
+  it('false when source is left of target', () => {
+    expect(isBackwardEdge(
+      { position: { x: 100, y: 100 } },
+      { position: { x: 300, y: 100 } },
+    )).toBe(false);
+  });
+
+  it('false when x positions are equal', () => {
+    expect(isBackwardEdge(
+      { position: { x: 200, y: 100 } },
+      { position: { x: 200, y: 300 } },
+    )).toBe(false);
+  });
+});
+
+describe('nodePortPosition', () => {
+  const node = { position: { x: 100, y: 50 }, measured: { width: 120, height: 60 } };
+
+  it('source port is on right edge', () => {
+    const pos = nodePortPosition(node, 0, 1, true);
+    expect(pos.x).toBe(220); // 100 + 120
+  });
+
+  it('target port is on left edge', () => {
+    const pos = nodePortPosition(node, 0, 1, false);
+    expect(pos.x).toBe(100);
+  });
+
+  it('y uses topPct formula: ((portIndex + 1) / (totalPorts + 1)) * height', () => {
+    // port 0 of 2: (1/3)*60 = 20 → y = 50 + 20 = 70
+    const pos = nodePortPosition(node, 0, 2, true);
+    expect(pos.y).toBe(70);
+    // port 1 of 2: (2/3)*60 = 40 → y = 50 + 40 = 90
+    const pos2 = nodePortPosition(node, 1, 2, true);
+    expect(pos2.y).toBe(90);
+  });
+
+  it('falls back to width=100, height=40 when measured is missing', () => {
+    const bare = { position: { x: 0, y: 0 } };
+    const pos = nodePortPosition(bare, 0, 1, true);
+    expect(pos.x).toBe(100);
+    expect(pos.y).toBe(20); // (1/2)*40
+  });
+});
+
+describe('computeFeedbackRoute', () => {
+  it('returns 4 waypoints (source and target are implicit)', () => {
+    const route = computeFeedbackRoute(
+      { x: 300, y: 100 }, { x: 100, y: 100 },
+      160, 140,
+    );
+    expect(route).toHaveLength(4);
+  });
+
+  it('waypoints form a downward U: right, down, across, up', () => {
+    const route = computeFeedbackRoute(
+      { x: 300, y: 100 }, { x: 100, y: 100 },
+      160, 140, 60,
+    );
+    // wp0: right of source
+    expect(route[0].x).toBe(360);
+    expect(route[0].y).toBe(100);
+    // wp1: down to bottomY = max(160,140) + 60 = 220
+    expect(route[1].x).toBe(360);
+    expect(route[1].y).toBe(220);
+    // wp2: across to left of target
+    expect(route[2].x).toBe(40);
+    expect(route[2].y).toBe(220);
+    // wp3: up to target y
+    expect(route[3].x).toBe(40);
+    expect(route[3].y).toBe(100);
+  });
+
+  it('with source+target via expandPoints produces 6-vertex path', () => {
+    const route = computeFeedbackRoute(
+      { x: 300, y: 100 }, { x: 100, y: 100 },
+      160, 140,
+    );
+    const V = expandPoints(route, { x: 300, y: 100 }, { x: 100, y: 100 });
+    expect(V).toHaveLength(6);
+    // All consecutive pairs are axis-aligned
+    for (let i = 0; i < V.length - 1; i++) {
+      const hor = Math.abs(V[i].x - V[i + 1].x) < 0.01;
+      const ver = Math.abs(V[i].y - V[i + 1].y) < 0.01;
+      expect(hor || ver).toBe(true);
+    }
+  });
+
+  it('bottomY is max(sourceBottom, targetBottom) + clearance', () => {
+    const route = computeFeedbackRoute(
+      { x: 300, y: 100 }, { x: 100, y: 100 },
+      200, 150, 50,
+    );
+    // bottomY = max(200,150) + 50 = 250
+    expect(route[1].y).toBe(250);
+    expect(route[2].y).toBe(250);
   });
 });
