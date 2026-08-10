@@ -26,15 +26,14 @@ describe('PID block (ISA standard form)', () => {
     expect(out[0]).toBeCloseTo(6.5, 5);
   });
 
-  it('derivative on PV: u = Kp * [e + Td * (-dPV/dt)]', () => {
+  it('derivative on PV: filtered derivative opposes PV change', () => {
     const block = PID.create();
-    // error = 5, pv = 3, prevPv = 2 (state[1]), dt = 0.1
-    // dPV/dt = (3 - 2) / 0.1 = 10
-    // D term = Kp * Td * (-10) = 1 * 0.5 * (-10) = -5
+    // error = 5, pv = 3, filteredPv = 2 (state[1]), Td = 0.5, N = 10
+    // D term = Kp * N * (filteredPv - pv) = 1 * 10 * (2 - 3) = -10
     // P term = Kp * error = 5
-    // u = 5 + 0 + (-5) = 0
+    // u = 5 + 0 + (-10) = -5
     const [out] = block.compute(0.1, [5, 3], [0, 2], { Kp: 1, Ti: 0, Td: 0.5 });
-    expect(out[0]).toBeCloseTo(0, 5);
+    expect(out[0]).toBeCloseTo(-5, 5);
   });
 
   it('derivative opposes PV increase (no derivative kick on setpoint change)', () => {
@@ -55,8 +54,10 @@ describe('PID block (ISA standard form)', () => {
     expect(out[0]).toBeCloseTo(-9.5, 5);
   });
 
-  it('state_dot[0] = error, state_dot[1] = dPV/dt', () => {
+  it('state_dot[0] = error, state_dot[1] = (pv - filteredPv) / tau_d', () => {
     const block = PID.create();
+    // Td=0 → tau_d = 0.1 (fallback), pv=3, filteredPv=2
+    // stateDot[1] = (3 - 2) / 0.1 = 10
     const [, stateDot] = block.compute(0.1, [5, 3], [0, 2], { Kp: 1, Ti: 0, Td: 0 });
     expect(stateDot[0]).toBe(5);           // error
     expect(stateDot[1]).toBeCloseTo(10, 5); // (3-2)/0.1 = 10
@@ -71,12 +72,11 @@ describe('PID block (ISA standard form)', () => {
   it('falls back to error as PV when only 1 input provided', () => {
     const block = PID.create();
     // Single input: error=5, no PV → pv defaults to error=5
-    // dPV/dt = (5 - prevPv) / dt = (5 - 2) / 0.1 = 30
-    // D term = 1 * 0.5 * (-30) = -15
+    // D term = Kp * N * (filteredPv - pv) = 1 * 10 * (2 - 5) = -30
     // P term = 5
-    // u = 5 + 0 + (-15) = -10
+    // u = 5 + 0 + (-30) = -25
     const [out] = block.compute(0.1, [5], [0, 2], { Kp: 1, Ti: 0, Td: 0.5 });
-    expect(out[0]).toBeCloseTo(-10, 5);
+    expect(out[0]).toBeCloseTo(-25, 5);
   });
 });
 

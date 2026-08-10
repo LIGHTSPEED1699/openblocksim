@@ -228,6 +228,7 @@ export function compileGraph(
   // compute the new state directly (not via RK4 integration)
   const applyAbsoluteState = (t: number, state: number[]): void => {
     const allOutputs = getOutputs(t, state);
+    // Standard absolute-mode blocks (TransportDelay, Relay)
     for (const id of order) {
       if (!absoluteBlockIds.has(id)) continue;
       const block = blocks.get(id)!;
