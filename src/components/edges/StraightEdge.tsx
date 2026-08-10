@@ -4,7 +4,7 @@ import {
   type EdgeProps,
   type XYPosition,
 } from '@xyflow/react';
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   expandPoints,
   buildOrthogonalPath,
@@ -20,9 +20,11 @@ export interface StraightEdgeData {
   [key: string]: unknown;
 }
 
-const HIT_THRESHOLD = 8;
+const HIT_THRESHOLD_SCREEN_PX = 10;
 const HIT_STROKE_WIDTH = 14;
 const WAYPOINT_RADIUS = 4;
+const ARROW_COLOR_SELECTED = '#3b82f6';
+const ARROW_COLOR_DEFAULT = '#94a3b8';
 
 function materializeWaypoints(V: XYPosition[]): XYPosition[] {
   return V.slice(1, -1);
@@ -45,14 +47,19 @@ export function StraightEdge({
   const V = expandPoints(waypoints, sourcePos, targetPos);
   const path = buildOrthogonalPath(V);
 
+  const [hovered, setHovered] = useState(false);
+  const showHandles = selected || hovered;
+
   const dragRef = useRef<{
     V: XYPosition[];
     segmentIndex: number;
     isHorizontal: boolean;
-    mode: 'translate' | 'bend';
+    mode: 'translate' | 'bend' | 'vertex';
+    materialized: boolean;
+    lastPos: XYPosition;
   } | null>(null);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getZoom } = useReactFlow();
 
   const updateEdgeWaypoints = useCallback(
     (newWaypoints: XYPosition[]) => {
@@ -76,16 +83,12 @@ export function StraightEdge({
         x: e.clientX,
         y: e.clientY,
       });
+      const zoom = getZoom();
+      const threshold = HIT_THRESHOLD_SCREEN_PX / zoom;
 
       let currentV = V;
-      const segmentIndex = hitTestSegment(currentV, flowPos, HIT_THRESHOLD);
+      const segmentIndex = hitTestSegment(currentV, flowPos, threshold);
       if (segmentIndex === null) return;
-
-      if (waypoints.length === 0) {
-        const frozenWp = materializeWaypoints(currentV);
-        updateEdgeWaypoints(frozenWp);
-        currentV = expandPoints(frozenWp, sourcePos, targetPos);
-      }
 
       const a = currentV[segmentIndex];
       const b = currentV[segmentIndex + 1];
@@ -93,18 +96,14 @@ export function StraightEdge({
       const hasInteriorStart = segmentIndex > 0;
       const hasInteriorEnd = segmentIndex + 1 < currentV.length - 1;
 
-      if (!hasInteriorStart && !hasInteriorEnd) {
-        currentV = insertWaypoint(currentV, segmentIndex, flowPos);
-        updateEdgeWaypoints(materializeWaypoints(currentV));
-        dragRef.current = {
-          V: currentV,
-          segmentIndex,
-          isHorizontal,
-          mode: 'translate',
-        };
-      } else {
-        dragRef.current = { V: currentV, segmentIndex, isHorizontal, mode: 'translate' };
-      }
+      dragRef.current = {
+        V: currentV,
+        segmentIndex,
+        isHorizontal,
+        mode: !hasInteriorStart && !hasInteriorEnd ? 'bend' : 'translate',
+        materialized: waypoints.length > 0,
+        lastPos: flowPos,
+      };
 
       (e.target as Element).setPointerCapture?.(e.pointerId);
 
@@ -118,7 +117,7 @@ export function StraightEdge({
         );
       }
     },
-    [id, V, waypoints, sourcePos, targetPos, screenToFlowPosition, updateEdgeWaypoints]
+    [id, V, waypoints, screenToFlowPosition, getZoom],
   );
 
   const onPointerMove = useCallback(
@@ -131,17 +130,40 @@ export function StraightEdge({
         y: e.clientY,
       });
 
+      // Defer materialization to first move with delta > 0
+      const delta = Math.abs(flowPos.x - dr.lastPos.x) + Math.abs(flowPos.y - dr.lastPos.y);
+      if (delta < 0.5) return;
+      dr.lastPos = flowPos;
+
+      let currentV = dr.V;
+      if (!dr.materialized) {
+        if (waypoints.length === 0) {
+          const frozenWp = materializeWaypoints(currentV);
+          updateEdgeWaypoints(frozenWp);
+          currentV = expandPoints(frozenWp, sourcePos, targetPos);
+          dr.V = currentV;
+        }
+        dr.materialized = true;
+
+        if (dr.mode === 'bend') {
+          currentV = insertWaypoint(currentV, dr.segmentIndex, flowPos);
+          updateEdgeWaypoints(materializeWaypoints(currentV));
+          dr.V = currentV;
+          dr.mode = 'translate';
+          return;
+        }
+      }
+
       const a = dr.V[dr.segmentIndex];
-      const delta: XYPosition = dr.isHorizontal
+      const deltaMove: XYPosition = dr.isHorizontal
         ? { x: 0, y: flowPos.y - a.y }
         : { x: flowPos.x - a.x, y: 0 };
 
-      const newV = translateSegment(dr.V, dr.segmentIndex, delta);
+      const newV = translateSegment(dr.V, dr.segmentIndex, deltaMove);
       dr.V = newV;
-
       updateEdgeWaypoints(materializeWaypoints(newV));
     },
-    [screenToFlowPosition, updateEdgeWaypoints],
+    [screenToFlowPosition, updateEdgeWaypoints, waypoints, sourcePos, targetPos],
   );
 
   const onPointerUp = useCallback(() => {
@@ -157,14 +179,31 @@ export function StraightEdge({
     [waypoints, updateEdgeWaypoints],
   );
 
+  const strokeColor = selected ? ARROW_COLOR_SELECTED : ARROW_COLOR_DEFAULT;
+  const markerId = `edge-arrow-${id}`;
+
   return (
     <g>
+      <defs>
+        <marker
+          id={markerId}
+          viewBox="0 0 10 10"
+          refX={9}
+          refY={5}
+          markerWidth={7}
+          markerHeight={7}
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
+        </marker>
+      </defs>
       <BaseEdge
         id={id}
         path={path}
+        markerEnd={`url(#${markerId})`}
         style={{
           strokeWidth: 2,
-          stroke: selected ? '#3b82f6' : '#94a3b8',
+          stroke: strokeColor,
         }}
       />
 
@@ -178,9 +217,11 @@ export function StraightEdge({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
       />
 
-      {selected &&
+      {showHandles &&
         waypoints.map((wp, i) => (
           <circle
             key={i}

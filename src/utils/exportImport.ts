@@ -1,12 +1,12 @@
 import { useDiagramStore } from '../store/diagramStore';
 import type { SerializedGraph } from '../engine/types';
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge, XYPosition } from '@xyflow/react';
 import type { BlockType } from '../blocks/types';
 import { BlockCategory } from '../blocks/types';
 
 interface ExportedModel {
   blocks: SerializedGraph['blocks'];
-  edges: SerializedGraph['edges'];
+  edges: (SerializedGraph['edges'][number] & { waypoints?: XYPosition[] })[];
   simConfig: { dt: number; duration: number };
 }
 
@@ -32,6 +32,7 @@ export function exportModel(): void {
       sourcePort: parsePort(e.sourceHandle),
       target: e.target,
       targetPort: parsePort(e.targetHandle),
+      waypoints: (e.data as any)?.waypoints ?? [],
     })),
     simConfig,
   };
@@ -72,6 +73,8 @@ export async function importModel(file: File): Promise<void> {
     target: e.target,
     sourceHandle: `out-${e.sourcePort}`,
     targetHandle: `in-${e.targetPort}`,
+    type: 'straight',
+    data: { waypoints: (e as any).waypoints ?? [] },
   }));
 
   store.setNodes(nodes);
