@@ -116,9 +116,13 @@ export function DiagramCanvas() {
   );
 
   const onConnectEnd = useCallback(() => {
-    // Safety net only. Do NOT reset here: click-to-plant needs the gesture to
-    // persist after the initial drag's pointerup. Cancellation is explicit
-    // (Escape / double-click via WireOverlay).
+    // Safety net: if the gesture is still active (no completion happened via
+    // onConnect or WireOverlay), clean up. This handles the case where the
+    // user dragged from a handle and released on empty canvas.
+    if (wireGesture.get().active) {
+      wireGesture.reset();
+      setWireActive(false);
+    }
   }, []);
 
   const onConnect = useCallback(
