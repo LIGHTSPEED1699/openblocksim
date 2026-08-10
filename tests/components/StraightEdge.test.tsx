@@ -4,14 +4,12 @@ import { StraightEdge } from '../../src/components/edges/StraightEdge';
 import type { EdgeProps } from '@xyflow/react';
 import React from 'react';
 
-vi.mock('../../src/store/diagramStore', () => ({
-  useDiagramStore: {
-    getState: () => ({
-      edges: [],
-      setEdges: vi.fn(),
-    }),
-  },
-}));
+vi.mock('../../src/store/diagramStore', () => {
+  const storeState = { edges: [], setEdges: vi.fn(), theme: 'dark' };
+  return {
+    useDiagramStore: (selector?: (s: any) => any) => selector ? selector(storeState) : storeState,
+  };
+});
 
 vi.mock('@xyflow/react', async () => {
   const actual = await vi.importActual('@xyflow/react');
@@ -67,7 +65,7 @@ describe('StraightEdge', () => {
     const { container } = renderEdge(makeProps());
     const hitPath = container.querySelector('path[stroke="transparent"]');
     expect(hitPath).toBeTruthy();
-    expect(hitPath!.getAttribute('stroke-width')).toBe('14');
+    expect(hitPath!.getAttribute('stroke-width')).toBe('12');
   });
 
   it('renders waypoint markers when selected', () => {

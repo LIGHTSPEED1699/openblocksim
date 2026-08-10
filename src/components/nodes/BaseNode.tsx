@@ -59,7 +59,7 @@ export function BaseNode({ id, data }: NodeProps) {
 
   return (
     <div
-      className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-slate-400 dark:border-slate-500'} bg-white dark:bg-slate-800 min-w-[60px] min-h-[40px] flex items-center justify-center relative`}
+      className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-slate-600 dark:border-slate-500'} bg-white dark:bg-slate-800 min-w-[60px] min-h-[40px] flex items-center justify-center relative`}
     >
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />

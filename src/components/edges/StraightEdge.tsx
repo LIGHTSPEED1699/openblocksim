@@ -21,10 +21,13 @@ export interface StraightEdgeData {
 }
 
 const HIT_THRESHOLD_SCREEN_PX = 10;
-const HIT_STROKE_WIDTH = 14;
+const HIT_STROKE_WIDTH = 12;
 const WAYPOINT_RADIUS = 4;
 const ARROW_COLOR_SELECTED = '#3b82f6';
-const ARROW_COLOR_DEFAULT = '#94a3b8';
+const ARROW_COLOR_DEFAULT_LIGHT = '#1e293b';
+const ARROW_COLOR_DEFAULT_DARK = '#94a3b8';
+const EDGE_STROKE_WIDTH = 1.5;
+const MARKER_SIZE = 5;
 
 function materializeWaypoints(V: XYPosition[]): XYPosition[] {
   return V.slice(1, -1);
@@ -60,6 +63,7 @@ export function StraightEdge({
   } | null>(null);
 
   const { screenToFlowPosition, getZoom } = useReactFlow();
+  const theme = useDiagramStore((s) => s.theme);
 
   const updateEdgeWaypoints = useCallback(
     (newWaypoints: XYPosition[]) => {
@@ -179,7 +183,7 @@ export function StraightEdge({
     [waypoints, updateEdgeWaypoints],
   );
 
-  const strokeColor = selected ? ARROW_COLOR_SELECTED : ARROW_COLOR_DEFAULT;
+  const strokeColor = selected ? ARROW_COLOR_SELECTED : theme === 'dark' ? ARROW_COLOR_DEFAULT_DARK : ARROW_COLOR_DEFAULT_LIGHT;
   const markerId = `edge-arrow-${id}`;
 
   return (
@@ -190,8 +194,8 @@ export function StraightEdge({
           viewBox="0 0 10 10"
           refX={9}
           refY={5}
-          markerWidth={7}
-          markerHeight={7}
+          markerWidth={MARKER_SIZE}
+          markerHeight={MARKER_SIZE}
           orient="auto-start-reverse"
         >
           <path d="M 0 0 L 10 5 L 0 10 z" fill={strokeColor} />
@@ -202,7 +206,7 @@ export function StraightEdge({
         path={path}
         markerEnd={`url(#${markerId})`}
         style={{
-          strokeWidth: 2,
+          strokeWidth: EDGE_STROKE_WIDTH,
           stroke: strokeColor,
         }}
       />

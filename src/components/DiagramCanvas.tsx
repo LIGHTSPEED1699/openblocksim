@@ -241,7 +241,7 @@ export function DiagramCanvas() {
         nodesDraggable
         defaultEdgeOptions={{ type: 'straight' }}
         connectionLineComponent={ConnectionPreview}
-        connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
+        connectionLineStyle={{ stroke: theme === 'dark' ? '#94a3b8' : '#1e293b', strokeWidth: 1.5 }}
       >
         <Background />
         <Controls />
