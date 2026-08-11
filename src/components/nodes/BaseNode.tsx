@@ -18,7 +18,7 @@ const ICONS: Record<string, string> = {
   Square: '⊓',
   // Math
   Sum: 'Σ',
-  Gain: '×',
+  Gain: 'K',
   Product: '⊗',
   // Linear
   Integrator: '∫',
