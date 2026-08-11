@@ -54,7 +54,8 @@ export function BaseNode({ id, data }: NodeProps) {
   // PID block: label input ports as e and PV
   const isSum = nodeData.type === 'Sum';
   const isPid = nodeData.type === 'PID';
-  const signs = isSum && params ? (params.signs as number[]) : null;
+  // Fall back to default signs [1, 1] when params not yet populated (e.g. freshly dropped)
+  const signs = isSum ? ((params?.signs as number[]) ?? [1, 1]) : null;
   const pidLabels = isPid ? ['e', 'PV'] : null;
 
   return (
@@ -74,11 +75,12 @@ export function BaseNode({ id, data }: NodeProps) {
         const topPct = `${((i + 1) / (nodeData.inputs + 1)) * 100}%`;
         const signLabel = signs ? (signs[i] ?? 1) >= 0 ? '+' : '−' : null;
         const portLabel = pidLabels ? pidLabels[i] : null;
+        const isPortLabel = portLabel !== null;
         return (
           <div key={`in-${i}`}>
             {(signLabel || portLabel) && (
               <div
-                className="absolute text-xs font-bold text-slate-600 dark:text-slate-300 select-none"
+                className={`absolute select-none ${isPortLabel ? 'text-[6px] font-normal' : 'text-xs font-bold'} text-slate-600 dark:text-slate-300`}
                 style={{ top: topPct, left: '6px', transform: 'translateY(-50%)' }}
               >
                 {signLabel || portLabel}

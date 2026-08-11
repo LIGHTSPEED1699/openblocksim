@@ -175,7 +175,21 @@ export function compileGraph(
     return state.slice(offset, offset + getStateSize(id));
   };
 
+  // Track which blocks use absolute state updates (TransportDelay, Relay)
+  const absoluteBlockIds = new Set<string>();
+  for (const id of order) {
+    const block = blocks.get(id)!;
+    if (block.isDynamic && block.stateUpdateMode === 'absolute') {
+      absoluteBlockIds.add(id);
+    }
+  }
+
   // Generate f(t, state) → state_dot
+  // For absolute-mode blocks (TransportDelay, Relay), return zero derivatives.
+  // Their state is updated by applyAbsoluteState() after the RK4 step.
+  // Returning non-zero "derivatives" for absolute blocks corrupts intermediate
+  // RK4 evaluations (k2, k3, k4 use state + dt/2*k1, etc.) which produce
+  // wrong outputs that propagate to dependent blocks.
   const f = (t: number, state: number[]): number[] => {
     const outputs = new Map<string, number[]>();
     const stateDot = new Array(stateOffset).fill(0);
@@ -189,12 +203,13 @@ export function compileGraph(
       const [output, newStateOrDot] = block.compute(dt, inputValues, blockState, blockParams, t);
       outputs.set(id, output);
 
-      if (block.isDynamic) {
+      if (block.isDynamic && !absoluteBlockIds.has(id)) {
         const offset = stateOffsets.get(id)!;
         for (let i = 0; i < newStateOrDot.length; i++) {
           stateDot[offset + i] = newStateOrDot[i];
         }
       }
+      // Absolute-mode blocks: stateDot stays zero — state updated by applyAbsoluteState
     }
 
     return stateDot;
@@ -214,15 +229,6 @@ export function compileGraph(
     }
     return outputs;
   };
-
-  // Track which blocks use absolute state updates (TransportDelay, Relay)
-  const absoluteBlockIds = new Set<string>();
-  for (const id of order) {
-    const block = blocks.get(id)!;
-    if (block.isDynamic && block.stateUpdateMode === 'absolute') {
-      absoluteBlockIds.add(id);
-    }
-  }
 
   // applyAbsoluteState(t, state) — for blocks with absolute state updates,
   // compute the new state directly (not via RK4 integration)
