@@ -45,6 +45,7 @@ describe('wireGesture', () => {
       planted: [{ x: 100, y: 200 }],
       cursor: { x: 150, y: 250 },
       pointerId: 1,
+      completed: true,
     });
     wireGesture.reset();
     expect(wireGesture.get()).toEqual({
@@ -53,6 +54,7 @@ describe('wireGesture', () => {
       planted: [],
       cursor: null,
       pointerId: null,
+      completed: false,
     });
   });
 

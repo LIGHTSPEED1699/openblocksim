@@ -30,10 +30,51 @@ describe('expandPoints', () => {
     expect(result[3]).toEqual(TGT);
   });
 
-  it('returns [source, ...waypoints, target] when waypoints non-empty', () => {
+  it('returns [source, ...waypoints, target] when waypoints non-empty and all aligned', () => {
+    // All pairs axis-aligned: source(100,100)→wp(150,100)→target(300,100)
+    // No elbows needed.
+    const wp: XYPosition[] = [{ x: 150, y: 100 }];
+    const result = expandPoints(wp, SRC, { x: 300, y: 100 });
+    expect(result).toEqual([SRC, ...wp, { x: 300, y: 100 }]);
+  });
+
+  it('inserts elbow vertices for non-axis-aligned waypoint pairs (horizontal-first)', () => {
+    // Source (100,100) → waypoint (150,150) → target (300,200)
+    // Source→waypoint: not axis-aligned → elbow at (150, 100)
+    // Waypoint→target: not axis-aligned → elbow at (300, 150)
     const wp: XYPosition[] = [{ x: 150, y: 150 }];
     const result = expandPoints(wp, SRC, TGT);
-    expect(result).toEqual([SRC, ...wp, TGT]);
+    // Expected: [source, elbow, waypoint, elbow, target]
+    expect(result).toEqual([
+      SRC,                        // (100, 100)
+      { x: 150, y: 100 },         // elbow: horizontal out of source, then vertical to waypoint
+      { x: 150, y: 150 },         // waypoint
+      { x: 300, y: 150 },         // elbow: horizontal out of waypoint, then vertical to target
+      TGT,                        // (300, 200)
+    ]);
+  });
+
+  it('inserts elbow for non-aligned source→first-waypoint', () => {
+    // Source (100,100) → waypoint (200,100) → target (300,200)
+    // Source→waypoint: same y (100) → already axis-aligned, no elbow
+    // Waypoint→target: not axis-aligned → elbow at (300, 100)
+    const wp: XYPosition[] = [{ x: 200, y: 100 }];
+    const result = expandPoints(wp, SRC, TGT);
+    expect(result).toEqual([
+      SRC,                        // (100, 100)
+      { x: 200, y: 100 },         // waypoint (same y, no elbow before it)
+      { x: 300, y: 100 },         // elbow: horizontal to target x, then vertical to target
+      TGT,                        // (300, 200)
+    ]);
+  });
+
+  it('inserts elbow for non-aligned last-waypoint→target', () => {
+    // Source (100,100) → waypoint (100,200) → target (300,200)
+    // Source→waypoint: same x (100) → already axis-aligned, no elbow
+    // Waypoint→target: same y (200) → already axis-aligned, no elbow
+    const wp: XYPosition[] = [{ x: 100, y: 200 }];
+    const result = expandPoints(wp, SRC, TGT);
+    expect(result).toEqual([SRC, { x: 100, y: 200 }, TGT]);
   });
 
   it('same-y detection uses 0.5 tolerance boundary', () => {

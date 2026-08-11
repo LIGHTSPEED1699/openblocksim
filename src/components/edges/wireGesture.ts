@@ -6,6 +6,7 @@ export interface WireGestureState {
   planted: XYPosition[];
   cursor: XYPosition | null;
   pointerId: number | null;
+  completed: boolean;
 }
 
 type Listener = () => void;
@@ -16,6 +17,7 @@ let state: WireGestureState = {
   planted: [],
   cursor: null,
   pointerId: null,
+  completed: false,
 };
 
 const listeners = new Set<Listener>();
@@ -37,6 +39,7 @@ export const wireGesture = {
       planted: [],
       cursor: null,
       pointerId: null,
+      completed: false,
     });
   },
 };

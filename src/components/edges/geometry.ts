@@ -6,7 +6,21 @@ export function expandPoints(
   targetPos: XYPosition,
 ): XYPosition[] {
   if (waypoints.length > 0) {
-    return [sourcePos, ...waypoints, targetPos];
+    // Walk [source, ...waypoints, target]; for each consecutive pair (a, b)
+    // that is NOT axis-aligned, insert an elbow vertex at (b.x, a.y) —
+    // horizontal-first: horizontal out of a, then vertical into b.
+    const raw = [sourcePos, ...waypoints, targetPos];
+    const result: XYPosition[] = [raw[0]];
+    for (let i = 1; i < raw.length; i++) {
+      const a = raw[i - 1];
+      const b = raw[i];
+      const aligned = Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5;
+      if (!aligned) {
+        result.push({ x: b.x, y: a.y });
+      }
+      result.push(b);
+    }
+    return result;
   }
   if (Math.abs(sourcePos.y - targetPos.y) < 0.5) {
     return [sourcePos, targetPos];
