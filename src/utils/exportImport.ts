@@ -19,6 +19,9 @@ function parsePort(handle: string | null | undefined): number {
 
 export function exportModel(): void {
   const { nodes, edges, params, simConfig } = useDiagramStore.getState();
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  // Filter out phantom edges whose source or target doesn't exist
+  const cleanEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
   const model: ExportedModel = {
     blocks: nodes.map((n) => ({
       id: n.id,
@@ -26,7 +29,7 @@ export function exportModel(): void {
       params: params[n.id] ?? {},
       position: n.position,
     })),
-    edges: edges.map((e) => ({
+    edges: cleanEdges.map((e) => ({
       id: e.id,
       source: e.source,
       sourcePort: parsePort(e.sourceHandle),
@@ -57,6 +60,8 @@ export async function importModel(file: File): Promise<void> {
   const store = useDiagramStore.getState();
   store.clear();
 
+  const blockIds = new Set(data.blocks.map((b) => b.id));
+
   const nodes: Node[] = data.blocks.map((b) => {
     const io = TYPE_IO[b.type] ?? { inputs: 1, outputs: 1 };
     return {
@@ -67,15 +72,18 @@ export async function importModel(file: File): Promise<void> {
     };
   });
 
-  const edges: Edge[] = data.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    sourceHandle: `out-${e.sourcePort}`,
-    targetHandle: `in-${e.targetPort}`,
-    type: 'straight',
-    data: { waypoints: (e as any).waypoints ?? [] },
-  }));
+  // Filter out phantom edges whose source or target doesn't exist in blocks
+  const edges: Edge[] = data.edges
+    .filter((e) => blockIds.has(e.source) && blockIds.has(e.target))
+    .map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: `out-${e.sourcePort}`,
+      targetHandle: `in-${e.targetPort}`,
+      type: 'straight',
+      data: { waypoints: (e as any).waypoints ?? [] },
+    }));
 
   store.setNodes(nodes);
   store.setEdges(edges);

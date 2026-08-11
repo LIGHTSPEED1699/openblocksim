@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useDiagramStore } from './store/diagramStore';
 import { BlockLibrary } from './components/BlockLibrary';
@@ -28,10 +28,37 @@ export default function App() {
   const setSimError = useDiagramStore((s) => s.setSimError);
   const setSimConfig = useDiagramStore((s) => s.setSimConfig);
   const toggleTheme = useDiagramStore((s) => s.toggleTheme);
+  const clear = useDiagramStore((s) => s.clear);
+
+  const [showNewMenu, setShowNewMenu] = useState(false);
+  const newMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  useEffect(() => {
+    if (!showNewMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) {
+        setShowNewMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showNewMenu]);
+
+  const handleNew = () => {
+    setShowNewMenu(true);
+  };
+
+  const handleNewConfirm = (exportFirst: boolean) => {
+    setShowNewMenu(false);
+    if (exportFirst) {
+      exportModel();
+    }
+    clear();
+  };
 
   const selectedNode = nodes.find((n) => n.id === selectedBlockId);
   const selectedType = (selectedNode?.data?.type as BlockType | undefined) ?? null;
@@ -108,7 +135,40 @@ export default function App() {
         />
       </div>
       <PlotArea />
-      <div className="flex gap-2 px-4 py-1 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] text-xs">
+      <div className="flex items-center gap-2 px-4 py-1 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] text-xs">
+        <div ref={newMenuRef} className="relative">
+          <button
+            onClick={handleNew}
+            className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:opacity-80"
+          >
+            New
+          </button>
+          {showNewMenu && (
+            <div className="absolute bottom-full left-0 mb-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded shadow-lg py-1 z-50 min-w-[240px]">
+              <div className="px-3 py-2 text-[var(--text-secondary)]">
+                Export current model before clearing?
+              </div>
+              <button
+                onClick={() => handleNewConfirm(true)}
+                className="block w-full text-left px-3 py-1.5 text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Export, then clear
+              </button>
+              <button
+                onClick={() => handleNewConfirm(false)}
+                className="block w-full text-left px-3 py-1.5 text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Clear without exporting
+              </button>
+              <button
+                onClick={() => setShowNewMenu(false)}
+                className="block w-full text-left px-3 py-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
         <button
           onClick={exportModel}
           className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:opacity-80"
@@ -128,6 +188,15 @@ export default function App() {
             }}
           />
         </label>
+        <div className="flex-1" />
+        <a
+          href="https://hongbinli.ca/tools/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2 py-1 text-[var(--text-secondary)] hover:text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          ← Back to Tools
+        </a>
       </div>
     </div>
   );

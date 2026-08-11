@@ -25,10 +25,23 @@ export function validateGraph(graph: SerializedGraph, registry: BlockRegistry): 
     adj.get(e.source)?.push(e.target);
   }
 
+  // Check for edges referencing non-existent blocks (phantom edges)
+  const blockIds = new Set(graph.blocks.map((b) => b.id));
+  for (const e of graph.edges) {
+    if (!blockIds.has(e.source)) {
+      errors.push(`Edge ${e.id} references non-existent source block "${e.source}"`);
+    }
+    if (!blockIds.has(e.target)) {
+      errors.push(`Edge ${e.id} references non-existent target block "${e.target}"`);
+    }
+  }
+
   // Check for disconnected (unwired) input ports
   const wiredInputs = new Set<string>();
   for (const e of graph.edges) {
-    wiredInputs.add(`${e.target}:${e.targetPort}`);
+    if (blockIds.has(e.target)) {
+      wiredInputs.add(`${e.target}:${e.targetPort}`);
+    }
   }
   for (const b of graph.blocks) {
     const block = blocks.get(b.id)!;

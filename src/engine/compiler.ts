@@ -13,10 +13,16 @@ export function compileGraph(
     blocks.set(b.id, registry.create(b.type, b.params));
   }
 
+  // Filter out phantom edges whose source or target doesn't exist in blocks.
+  // These can appear from edge wire redesign artifacts or corrupted imports.
+  const validEdges = graph.edges.filter(
+    (e) => blocks.has(e.source) && blocks.has(e.target),
+  );
+
   // Build adjacency: input edges (target ← source)
   const inputsFrom = new Map<string, { source: string; sourcePort: number; targetPort: number }[]>();
   for (const b of graph.blocks) inputsFrom.set(b.id, []);
-  for (const e of graph.edges) {
+  for (const e of validEdges) {
     inputsFrom.get(e.target)?.push({ source: e.source, sourcePort: e.sourcePort, targetPort: e.targetPort });
   }
 
@@ -24,13 +30,13 @@ export function compileGraph(
   // For cyclic graphs (closed-loop), identify feedback edges and break the cycle
   const inDegree = new Map<string, number>();
   for (const b of graph.blocks) inDegree.set(b.id, 0);
-  for (const e of graph.edges) {
+  for (const e of validEdges) {
     inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
   }
 
   const adj = new Map<string, string[]>();
   for (const b of graph.blocks) adj.set(b.id, []);
-  for (const e of graph.edges) adj.get(e.source)?.push(e.target);
+  for (const e of validEdges) adj.get(e.source)?.push(e.target);
 
   const queue: string[] = [];
   for (const [id, deg] of inDegree) {
@@ -55,7 +61,7 @@ export function compileGraph(
     // Find edges within the remaining cyclic subgraph
     const unordered = new Set(graph.blocks.map((b) => b.id).filter((id) => !order.includes(id)));
     let broke = false;
-    for (const e of graph.edges) {
+    for (const e of validEdges) {
       if (unordered.has(e.source) && unordered.has(e.target) && !feedbackEdges.has(e.id)) {
         // Prefer breaking edges from dynamic blocks (they have state for delay)
         const srcBlock = blocks.get(e.source)!;
@@ -68,7 +74,7 @@ export function compileGraph(
     }
     if (!broke) {
       // No dynamic block edge to break — try any edge in the cycle
-      for (const e of graph.edges) {
+      for (const e of validEdges) {
         if (unordered.has(e.source) && unordered.has(e.target) && !feedbackEdges.has(e.id)) {
           feedbackEdges.add(e.id);
           inDegree.set(e.target, (inDegree.get(e.target) ?? 0) - 1);
@@ -86,7 +92,7 @@ export function compileGraph(
       const node = queue.shift()!;
       order.push(node);
       for (const neighbor of adj.get(node) ?? []) {
-        const edge = graph.edges.find(
+        const edge = validEdges.find(
           (e) => e.source === node && e.target === neighbor,
         );
         if (edge && feedbackEdges.has(edge.id)) continue;
@@ -137,7 +143,7 @@ export function compileGraph(
 
   // Build feedback edge lookup: "targetId:targetPort" → is feedback?
   const feedbackEdgeLookup = new Set<string>();
-  for (const e of graph.edges) {
+  for (const e of validEdges) {
     if (feedbackEdges.has(e.id)) {
       feedbackEdgeLookup.add(`${e.target}:${e.targetPort}`);
     }
