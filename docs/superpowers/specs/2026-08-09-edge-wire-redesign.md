@@ -3,6 +3,7 @@
 **Date:** 2026-08-09
 **Project:** OpenBlockSim (openblocksim, sim.hongbinli.ca)
 **Status:** Approved (design review 2026-08-09, approach A)
+**Post-implementation amendments:** 2026-08-10 — theme-aware edge colors, reduced stroke width, PID ISA form. See §12.
 
 ## 1. Problem Statement
 
@@ -352,3 +353,20 @@ Acceptance checklist results:
 - [x] `npm run build` passes.
 
 Implementation note: WireOverlay's unmount-cleanup gesture reset was removed because React StrictMode's dev double-mount reset the gesture before `onConnect` fired, causing direct-drag feedback edges to fall through to the no-feedback path. Explicit cancel/complete now drive teardown; `onConnectEnd` is a no-op (click-to-plant needs the gesture to persist past the initial drag's release).
+
+## 12. Post-Implementation Amendments (2026-08-10)
+
+The following changes were made after the initial implementation was complete. They are outside the original scope of this spec but are documented here for completeness.
+
+### 12.1 Theme-Aware Edge Colors (commit `b5547eb`)
+
+StraightEdge now uses `theme === 'dark'` to switch between light-mode (`#1e293b`) and dark-mode (`#94a3b8`) stroke colors, instead of the spec's fixed `#94a3b8`. The selected-state color (`#3b82f6`) is unchanged. This improves visibility in both themes.
+
+### 12.2 Reduced Stroke Width and Marker Size (commit `b5547eb`)
+
+- Edge stroke width changed from `2` (spec §5.2) to `1.5` for a lighter visual feel.
+- Arrow marker size changed from `14×14` (spec §6.5.1) to `5×5` to match the reduced stroke width.
+
+### 12.3 PID ISA Standard Form with Filtered Derivative (commits `01677dc`, `91ad247`)
+
+The PID block was changed from a simple parallel-form controller to ISA standard form with derivative-on-measurement (PV) and a filtered derivative term. This is an engine/control change outside the edge/wire specs but is documented here as it shipped in the same release cycle. The PID now has 2 inputs (error + PV for derivative-on-measurement) and uses a first-order high-pass filter for the derivative instead of finite differences.

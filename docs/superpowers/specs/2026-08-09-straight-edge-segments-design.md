@@ -3,6 +3,7 @@
 **Date:** 2026-08-09
 **Project:** OpenBlockSim (openblocksim, sim.hongbinli.ca)
 **Status:** Approved (design review 2026-08-09)
+**Post-implementation amendments:** 2026-08-10 — theme-aware edge colors, reduced stroke width. See §11.
 
 ## 1. Problem Statement
 
@@ -257,3 +258,13 @@ Playwright, against the running dev server:
 | Auto-routing when no waypoints? | Straight if aligned, midpoint jog otherwise; recomputes on node move |
 | Obstacle avoidance? | Out of scope (v2) |
 | Direct corner dragging? | Out of scope (v2); segment drag moves bends |
+
+## 11. Post-Implementation Amendments (2026-08-10)
+
+### 11.1 Theme-Aware Edge Colors (commit `b5547eb`)
+
+StraightEdge stroke color now adapts to dark/light theme: `#1e293b` in light mode, `#94a3b8` in dark mode, instead of the spec's fixed `#94a3b8` (§5.2). Selected-state color remains `#3b82f6`.
+
+### 11.2 Reduced Stroke Width (commit `b5547eb`)
+
+Edge stroke width changed from `2` (§5.2) to `1.5` for a lighter visual feel.
