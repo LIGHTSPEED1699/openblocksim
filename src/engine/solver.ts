@@ -1,6 +1,6 @@
 import type { CompiledModel, SimResult } from './types';
 
-const MAX_DURATION = 60;
+const MAX_DURATION = 600;
 const MAX_STEPS = 100000;
 
 export function solve(
