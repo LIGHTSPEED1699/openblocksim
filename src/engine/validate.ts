@@ -15,33 +15,31 @@ export function validateGraph(graph: SerializedGraph, registry: BlockRegistry): 
   const warnings: string[] = [];
 
   // Build adjacency list and instantiate blocks
+  const blockIds = new Set(graph.blocks.map((b) => b.id));
+  // Filter phantom edges (source/target not in blocks) — they're artifacts
+  // from edge wire redesign or corrupted imports. The compiler drops them
+  // silently; here we warn and skip them in all subsequent checks.
+  const validEdges = graph.edges.filter((e) => blockIds.has(e.source) && blockIds.has(e.target));
+  for (const e of graph.edges) {
+    if (!blockIds.has(e.source) || !blockIds.has(e.target)) {
+      warnings.push(`Edge ${e.id} references non-existent block (phantom edge, will be ignored)`);
+    }
+  }
+
   const adj = new Map<string, string[]>();
   const blocks = new Map<string, Block>();
   for (const b of graph.blocks) {
     adj.set(b.id, []);
     blocks.set(b.id, registry.create(b.type, b.params));
   }
-  for (const e of graph.edges) {
+  for (const e of validEdges) {
     adj.get(e.source)?.push(e.target);
-  }
-
-  // Check for edges referencing non-existent blocks (phantom edges)
-  const blockIds = new Set(graph.blocks.map((b) => b.id));
-  for (const e of graph.edges) {
-    if (!blockIds.has(e.source)) {
-      errors.push(`Edge ${e.id} references non-existent source block "${e.source}"`);
-    }
-    if (!blockIds.has(e.target)) {
-      errors.push(`Edge ${e.id} references non-existent target block "${e.target}"`);
-    }
   }
 
   // Check for disconnected (unwired) input ports
   const wiredInputs = new Set<string>();
-  for (const e of graph.edges) {
-    if (blockIds.has(e.target)) {
-      wiredInputs.add(`${e.target}:${e.targetPort}`);
-    }
+  for (const e of validEdges) {
+    wiredInputs.add(`${e.target}:${e.targetPort}`);
   }
   for (const b of graph.blocks) {
     const block = blocks.get(b.id)!;
