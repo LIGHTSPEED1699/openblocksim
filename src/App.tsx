@@ -32,6 +32,9 @@ export default function App() {
 
   const [showNewMenu, setShowNewMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [runStatus, setRunStatus] = useState<string | null>(null);
+  const [runRevision, setRunRevision] = useState(0);
 
   useEffect(() => {
     document.documentElement.className = theme;
@@ -65,6 +68,9 @@ export default function App() {
   const selectedParams = selectedBlockId ? params[selectedBlockId] ?? {} : {};
 
   const handleRun = () => {
+    setIsRunning(true);
+    setRunStatus('Running…');
+
     const store = useDiagramStore.getState();
     const graph = {
       blocks: store.nodes.map((n) => ({
@@ -94,14 +100,22 @@ export default function App() {
       const result = e.data;
       if (result.type === 'done') {
         setSimResults(result.results);
+        setRunStatus(`Done — ${result.results.time.length} steps`);
+        setRunRevision((r) => r + 1);
       } else if (result.type === 'error') {
         setSimError(result.message);
+        setRunStatus('Error');
       }
       worker.terminate();
+      setIsRunning(false);
+      setTimeout(() => setRunStatus(null), 3000);
     };
     worker.onerror = (e) => {
       setSimError(e.message || 'Worker error');
+      setRunStatus('Error');
       worker.terminate();
+      setIsRunning(false);
+      setTimeout(() => setRunStatus(null), 3000);
     };
   };
 
@@ -121,6 +135,8 @@ export default function App() {
         onDurationChange={(duration) => setSimConfig({ duration })}
         theme={theme}
         onToggleTheme={toggleTheme}
+        isRunning={isRunning}
+        runStatus={runStatus}
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />
@@ -134,7 +150,7 @@ export default function App() {
           onUpdate={updateParams}
         />
       </div>
-      <PlotArea />
+      <PlotArea revision={runRevision} />
       <div className="flex items-center gap-2 px-4 py-1 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] text-xs">
         <div ref={newMenuRef} className="relative">
           <button

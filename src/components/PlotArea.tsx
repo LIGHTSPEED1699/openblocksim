@@ -1,7 +1,11 @@
 import Plot from 'react-plotly.js';
 import { useDiagramStore } from '../store/diagramStore';
 
-export function PlotArea() {
+interface Props {
+  revision?: number;
+}
+
+export function PlotArea({ revision = 0 }: Props) {
   const simResults = useDiagramStore((s) => s.simResults);
   const simError = useDiagramStore((s) => s.simError);
   const nodes = useDiagramStore((s) => s.nodes);
@@ -38,7 +42,7 @@ export function PlotArea() {
         const trace = simResults.scopes[node.id] ?? [];
         return (
           <Plot
-            key={node.id}
+            key={`${node.id}-${revision}`}
             data={[
               {
                 x: simResults.time,
