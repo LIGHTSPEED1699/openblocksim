@@ -67,9 +67,7 @@ export function BlockLibrary({ onDragStart }: Props) {
               ) : (
                 <span className="font-mono text-base">{ICONS[type]}</span>
               )}
-              {!isImageIcon(type) && (
-                <span className="text-xs text-[var(--text-secondary)]">{type}</span>
-              )}
+              <span className="text-xs text-[var(--text-secondary)]">{type}</span>
             </div>
           ))}
         </div>
