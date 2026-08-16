@@ -129,28 +129,10 @@ const relayBangBang: ExportedModel = {
   simConfig: { dt: 0.01, duration: 20 },
 };
 
-// ---- Example 6: Integrator Ramp -----------------------------------------
-//  Constant(1) ──▶ Integrator ──▶ Scope
-//  Integrating a constant produces a linear ramp — the building block of
-//  accumulator and totalizer models.
-const integratorRamp: ExportedModel = {
-  blocks: [
-    { id: 'const', type: BlockType.Constant, params: { value: 1 }, position: { x: 80, y: 220 } },
-    { id: 'integ', type: BlockType.Integrator, params: { initialValue: 0 }, position: { x: 320, y: 220 } },
-    { id: 'scope', type: BlockType.Scope, params: {}, position: { x: 560, y: 220 } },
-  ],
-  edges: [
-    { id: 'e1', source: 'const', sourcePort: 0, target: 'integ', targetPort: 0, waypoints: [] },
-    { id: 'e2', source: 'integ', sourcePort: 0, target: 'scope', targetPort: 0, waypoints: [] },
-  ],
-  simConfig: { dt: 0.01, duration: 10 },
-};
-
 export const EXAMPLES: Example[] = [
   { id: 'first-order-step', name: 'First-Order Step Response', description: 'Exponential rise of a 1/(s+1) lag to a unit step.', model: firstOrderStep },
   { id: 'second-order-step', name: 'Second-Order Underdamped Step', description: 'Decaying oscillatory response of 1/(s^2 + 0.4s + 1).', model: secondOrderStep },
   { id: 'pid-closed-loop', name: 'PID Closed-Loop Control', description: 'PID controller tracking a unit step on an underdamped plant.', model: pidClosedLoop },
   { id: 'sine-saturation', name: 'Sine Through Saturation', description: 'A clipped sinusoid showing the saturation nonlinearity.', model: sineSaturation },
   { id: 'relay-bang-bang', name: 'Relay Bang-Bang Control', description: 'On/off control with hysteresis producing a limit cycle.', model: relayBangBang },
-  { id: 'integrator-ramp', name: 'Integrator Ramp', description: 'Integrating a constant yields a linear ramp.', model: integratorRamp },
 ];
