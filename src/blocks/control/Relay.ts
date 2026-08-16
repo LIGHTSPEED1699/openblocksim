@@ -28,6 +28,13 @@ export const Relay = {
         newState = onValue;
       } else if (currentState === onValue && input <= switchOff) {
         newState = offValue;
+      } else if (currentState !== onValue && currentState !== offValue) {
+        // Uninitialized state: the solver zero-initializes block state, so the
+        // relay starts at 0 (neither onValue nor offValue). Snap to a defined
+        // state based on the input so the relay can begin switching. Above the
+        // switch-on threshold → on; otherwise default to off (the relay sits
+        // in the off state until the input rises past switchOn).
+        newState = input >= switchOn ? onValue : offValue;
       } else {
         newState = currentState;
       }

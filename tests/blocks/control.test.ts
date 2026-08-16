@@ -110,4 +110,19 @@ describe('Relay block', () => {
     expect(out[0]).toBe(1);
     expect(newState[0]).toBe(1);
   });
+  it('snaps on from uninitialized (zero) state when input exceeds switchOn', () => {
+    // The solver zero-initializes block state, so a freshly started relay
+    // begins at 0 — neither onValue nor offValue. It must still turn on when
+    // the input crosses the switch-on threshold.
+    const block = Relay.create();
+    const [out, newState] = block.compute(0.01, [1], [0], { onValue: 1, offValue: -1, switchOn: 0.5, switchOff: -0.5 });
+    expect(out[0]).toBe(1);
+    expect(newState[0]).toBe(1);
+  });
+  it('defaults to off from uninitialized (zero) state when input is below switchOn', () => {
+    const block = Relay.create();
+    const [out, newState] = block.compute(0.01, [0], [0], { onValue: 1, offValue: -1, switchOn: 0.5, switchOff: -0.5 });
+    expect(out[0]).toBe(-1);
+    expect(newState[0]).toBe(-1);
+  });
 });
