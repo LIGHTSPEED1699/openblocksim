@@ -132,20 +132,29 @@ const relayBangBang: ExportedModel = {
 // ---- Example 6: Three-Element Drum Level Control -----------------------
 //  Architecture (Bequette Module 9):
 //
-//    Step(SP) → Sum(+) → PID(LC) ──────────→ Sum(+) → Sum(+) → PID(FC) → TF(valve) → Sum(+) → TF(plant) → Scope
-//                 ↑         ↑                  ↑                        ↑             ↑
-//                 │         │                  │                        │             │
-//                 │         │                  │                        │             │
-//    Step(D) → TF(steam) → Gain(Kff) ──────────┘                        │             │
-//                                                                        │             │
-//                 └── [level feedback] ──────────────────────────────────────────────┘
-//                                        [flow feedback] ────────────┘
+//    Step(SP) → Sum(+) → PID(LC) ──────────→ Sum(+) → Sum(+) → PID(FC) → TF(valve) → Sum(+) → [plant] → Scope
+//                 ↑                                                ↑             ↑                    ↑
+//                 │                                                │             │                    │
+//    Step(D) → TF(steam) → Gain(Kff) ──────────────→ Sum(+)        │             │                    │
+//                                                      │             │                    │
+//                 └── [level feedback via tap] ──────────────────────────────────────────────────────┘
+//                                                      [flow feedback] ───────────┘
 //
 //  Three-element drum level control: (1) drum level, (2) steam flow feedforward,
 //  (3) feedwater flow feedback. The plant has an inverse response (RHP zero)
-//  typical of boiler drum level — “swell and shrink” dynamics.
+//  typical of boiler drum level — "swell and shrink" dynamics.
 //
-//  Plant: Gp(s) = Kp*(1 - β*s) / [s*(τp*s + 1)]  with Kp=0.25, β=1, τp=2
+//  The Bequette plant Gp(s) = Kp*(1-βs)/[s*(τp*s+1)] has a pole at the origin
+//  (integrator). A single TF block with den=[...,0] diverges under RK4 with
+//  feedback delay, so the plant is decomposed into two paths matching the
+//  tool page's implementation:
+//    Path 1 (integrator+lag):  x' = Kp·u;  y1' = (x − y1)/τp
+//    Path 2 (RHP zero):        y2' = (−Kp·β·u − y2)/τp
+//    Output: L = y1 + y2
+//  A Gain(1.0) tap after the plant output ensures only one feedback edge
+//  is broken by the compiler (plant→tap), not two (level error + PID PV).
+//
+//  Plant: Kp=0.25, β=1, τp=2  (Bequette Module 9)
 //  Valve+Flow: 1/[(τv*s+1)(τF*s+1)]  with τv=0.15, τF=0.5
 //  Steam meas: 1/(τs*s+1)  with τs=0.5
 //
@@ -173,11 +182,20 @@ const drumLevelThreeElement: ExportedModel = {
     // Valve + feedwater flow measurement dynamics (combined)
     { id: 'tv', type: BlockType.TransferFunction, params: { num: [1], den: [0.075, 0.65, 1] }, position: { x: 880, y: 160 } },
     // Mass balance: feedwater flow - steam demand
-    { id: 'sm', type: BlockType.Sum, params: { signs: [1, -1] }, position: { x: 1020, y: 160 } },
-    // Drum level process: Gp(s) = 0.25*(1-s) / [s*(2s+1)] = (0.25-0.25s) / (2s²+s)
-    { id: 'tp', type: BlockType.TransferFunction, params: { num: [0.25, -0.25], den: [2, 1, 0] }, position: { x: 1160, y: 160 } },
+    { id: 'sm', type: BlockType.Sum, params: { signs: [1, -1] }, position: { x: 1000, y: 160 } },
+    // --- Plant decomposition (two-path, matches tool page) ---
+    // Path 1: Integrator — x = ∫ Kp·u dt  (TF: Kp/s)
+    { id: 'p1i', type: BlockType.TransferFunction, params: { num: [0.25], den: [1, 0] }, position: { x: 1140, y: 100 } },
+    // Path 1 lag: y1 = 1/(τp·s+1) · x  (first-order filter on integrator output)
+    { id: 'p1l', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 1260, y: 100 } },
+    // Path 2: RHP zero — y2 = −Kp·β/(τp·s+1) · u  (first-order lag with negative gain)
+    { id: 'p2', type: BlockType.TransferFunction, params: { num: [-0.25], den: [2, 1] }, position: { x: 1140, y: 240 } },
+    // Sum both paths: L = y1 + y2
+    { id: 'pl', type: BlockType.Sum, params: { signs: [1, 1] }, position: { x: 1380, y: 170 } },
+    // Gain(1.0) tap — non-dynamic passthrough so only one feedback edge is broken
+    { id: 'tap', type: BlockType.Gain, params: { gain: 1.0 }, position: { x: 1380, y: 280 } },
     // Output scope
-    { id: 'scope', type: BlockType.Scope, params: {}, position: { x: 1300, y: 160 } },
+    { id: 'scope', type: BlockType.Scope, params: {}, position: { x: 1520, y: 170 } },
   ],
   edges: [
     // Forward path: SP → error → LC → 3-element sum → flow error → FC → valve → mass balance → plant → scope
@@ -188,20 +206,29 @@ const drumLevelThreeElement: ExportedModel = {
     { id: 'e5', source: 'sfw', sourcePort: 0, target: 'fc', targetPort: 0, waypoints: [] },
     { id: 'e6', source: 'fc', sourcePort: 0, target: 'tv', targetPort: 0, waypoints: [] },
     { id: 'e7', source: 'tv', sourcePort: 0, target: 'sm', targetPort: 0, waypoints: [] },
-    { id: 'e8', source: 'sm', sourcePort: 0, target: 'tp', targetPort: 0, waypoints: [] },
-    { id: 'e9', source: 'tp', sourcePort: 0, target: 'scope', targetPort: 0, waypoints: [] },
+    // Mass balance → both plant paths
+    { id: 'e8', source: 'sm', sourcePort: 0, target: 'p1i', targetPort: 0, waypoints: [{ x: 1060, y: 120 }, { x: 1140, y: 120 }] },
+    { id: 'e9', source: 'sm', sourcePort: 0, target: 'p2', targetPort: 0, waypoints: [{ x: 1060, y: 260 }, { x: 1140, y: 260 }] },
+    // Path 1: integrator → lag → plant sum
+    { id: 'e10', source: 'p1i', sourcePort: 0, target: 'p1l', targetPort: 0, waypoints: [] },
+    { id: 'e11', source: 'p1l', sourcePort: 0, target: 'pl', targetPort: 0, waypoints: [{ x: 1340, y: 120 }, { x: 1380, y: 150 }] },
+    // Path 2: RHP zero → plant sum
+    { id: 'e12', source: 'p2', sourcePort: 0, target: 'pl', targetPort: 1, waypoints: [{ x: 1340, y: 260 }, { x: 1380, y: 200 }] },
+    // Plant output → tap (non-dynamic) → scope
+    { id: 'e13', source: 'pl', sourcePort: 0, target: 'tap', targetPort: 0, waypoints: [] },
+    { id: 'e14', source: 'pl', sourcePort: 0, target: 'scope', targetPort: 0, waypoints: [] },
     // Feedforward: D → steam meas → Kff → 3-element sum
-    { id: 'e10', source: 'd', sourcePort: 0, target: 'tfs', targetPort: 0, waypoints: [] },
-    { id: 'e11', source: 'tfs', sourcePort: 0, target: 'kff', targetPort: 0, waypoints: [] },
-    { id: 'e12', source: 'kff', sourcePort: 0, target: 'sf', targetPort: 1, waypoints: [{ x: 460, y: 380 }, { x: 460, y: 200 }] },
+    { id: 'e15', source: 'd', sourcePort: 0, target: 'tfs', targetPort: 0, waypoints: [] },
+    { id: 'e16', source: 'tfs', sourcePort: 0, target: 'kff', targetPort: 0, waypoints: [] },
+    { id: 'e17', source: 'kff', sourcePort: 0, target: 'sf', targetPort: 1, waypoints: [{ x: 460, y: 380 }, { x: 460, y: 200 }] },
     // Disturbance also enters mass balance directly
-    { id: 'e13', source: 'd', sourcePort: 0, target: 'sm', targetPort: 1, waypoints: [{ x: 120, y: 420 }, { x: 1020, y: 420 }] },
-    // Feedback: plant output → level error (negative input)
-    { id: 'e14', source: 'tp', sourcePort: 0, target: 'se', targetPort: 1, waypoints: [{ x: 1300, y: 280 }, { x: 1300, y: 460 }, { x: 200, y: 460 }, { x: 200, y: 200 }] },
-    // Feedback: plant output → level PID PV input (ISA derivative on PV)
-    { id: 'e15', source: 'tp', sourcePort: 0, target: 'lc', targetPort: 1, waypoints: [{ x: 1300, y: 260 }, { x: 1300, y: 480 }, { x: 340, y: 480 }, { x: 340, y: 200 }] },
+    { id: 'e18', source: 'd', sourcePort: 0, target: 'sm', targetPort: 1, waypoints: [{ x: 120, y: 420 }, { x: 1000, y: 420 }] },
+    // Feedback: tap → level error (negative input) — only plant→tap edge is broken
+    { id: 'e19', source: 'tap', sourcePort: 0, target: 'se', targetPort: 1, waypoints: [{ x: 1440, y: 320 }, { x: 1440, y: 460 }, { x: 200, y: 460 }, { x: 200, y: 200 }] },
+    // Feedback: tap → level PID PV input (ISA derivative on PV)
+    { id: 'e20', source: 'tap', sourcePort: 0, target: 'lc', targetPort: 1, waypoints: [{ x: 1440, y: 300 }, { x: 1440, y: 480 }, { x: 340, y: 480 }, { x: 340, y: 200 }] },
     // Feedback: valve/flow output → flow error (negative input)
-    { id: 'e16', source: 'tv', sourcePort: 0, target: 'sfw', targetPort: 1, waypoints: [{ x: 940, y: 280 }, { x: 940, y: 360 }, { x: 600, y: 360 }, { x: 600, y: 200 }] },
+    { id: 'e21', source: 'tv', sourcePort: 0, target: 'sfw', targetPort: 1, waypoints: [{ x: 940, y: 280 }, { x: 940, y: 360 }, { x: 600, y: 360 }, { x: 600, y: 200 }] },
   ],
   simConfig: { dt: 0.02, duration: 30 },
 };
@@ -218,14 +245,14 @@ const drumLevelThreeElement: ExportedModel = {
 //  The adaptive controller converges to these values as it minimises the
 //  tracking error e → 0.
 //
-//  Block diagram:
-//    Square ──→ StateSpace(ref) ──→ Sum(+) ──→ Product ──→ Gain(γ₁) ──→ Integrator ──→ Product ──→
-//             ↗                    (e=ym-y)  (e·r)                                (θ₁·r)   
-//    Square ─────────────────────────────────────────────────────────────────────────────────→ Sum ──→ StateSpace(plant) ──→ Scope
-//                                          ┌──→ Product ──→ Gain(γ₂) ──→ Integrator ──→ Product ──┘         │
-//                                          │    (e·y)                                (θ₂·y)       │
-//                                          │                                                  │
-//                                          └────────────── plant output y (feedback) ─────────┘
+//  A Gain(1.0) tap after the plant output acts as a non-dynamic fan-out point.
+//  The compiler breaks only the plant→tap edge (one delay); all three feedback
+//  destinations (error, e·y, θ₂·y) read from the tap's current-step output.
+//  This matches the discrete-time MRAC where the previous step's y is used
+//  for all feedback paths — a single one-step delay, not triple.
+//
+//  Adaptation gains are reduced (γ=0.1 vs 0.5 on the tool page) to account
+//  for RK4's higher sensitivity to the delayed feedback phase.
 const mracLyapunov: ExportedModel = {
   blocks: [
     // Reference signal r(t) — square wave, period 10s
@@ -236,13 +263,13 @@ const mracLyapunov: ExportedModel = {
     { id: 'err', type: BlockType.Sum, params: { signs: [1, -1] }, position: { x: 340, y: 140 } },
     // θ₁ adaptation: e·r → γ₁ → integrator
     { id: 'er', type: BlockType.Product, params: {}, position: { x: 480, y: 80 } },
-    { id: 'g1', type: BlockType.Gain, params: { gain: 0.5 }, position: { x: 600, y: 80 } },
+    { id: 'g1', type: BlockType.Gain, params: { gain: 0.1 }, position: { x: 600, y: 80 } },
     { id: 'th1', type: BlockType.Integrator, params: {}, position: { x: 720, y: 80 } },
     // Control contribution: θ₁·r
     { id: 'th1r', type: BlockType.Product, params: {}, position: { x: 860, y: 80 } },
     // θ₂ adaptation: e·y → γ₂ → integrator
     { id: 'ey', type: BlockType.Product, params: {}, position: { x: 480, y: 320 } },
-    { id: 'g2', type: BlockType.Gain, params: { gain: 0.5 }, position: { x: 600, y: 320 } },
+    { id: 'g2', type: BlockType.Gain, params: { gain: 0.1 }, position: { x: 600, y: 320 } },
     { id: 'th2', type: BlockType.Integrator, params: {}, position: { x: 720, y: 320 } },
     // Control contribution: θ₂·y
     { id: 'th2y', type: BlockType.Product, params: {}, position: { x: 860, y: 320 } },
@@ -250,9 +277,11 @@ const mracLyapunov: ExportedModel = {
     { id: 'us', type: BlockType.Sum, params: { signs: [1, 1] }, position: { x: 1000, y: 200 } },
     // Plant: ẏ = -2y + u  (a=2, b=1)
     { id: 'plant', type: BlockType.StateSpace, params: { A: [-2], B: [1], C: [1], D: [0] }, position: { x: 1140, y: 200 } },
+    // Gain(1.0) tap — non-dynamic fan-out so only plant→tap is broken by compiler
+    { id: 'tap', type: BlockType.Gain, params: { gain: 1.0 }, position: { x: 1280, y: 200 } },
     // Scopes: plant output and control signal
-    { id: 'sy', type: BlockType.Scope, params: {}, position: { x: 1280, y: 140 } },
-    { id: 'su', type: BlockType.Scope, params: {}, position: { x: 1280, y: 320 } },
+    { id: 'sy', type: BlockType.Scope, params: {}, position: { x: 1420, y: 140 } },
+    { id: 'su', type: BlockType.Scope, params: {}, position: { x: 1420, y: 320 } },
   ],
   edges: [
     // Reference signal to multiple destinations
@@ -275,19 +304,21 @@ const mracLyapunov: ExportedModel = {
     // Control law: u = θ₁·r + θ₂·y
     { id: 'e13', source: 'th1r', sourcePort: 0, target: 'us', targetPort: 0, waypoints: [{ x: 960, y: 80 }, { x: 960, y: 180 }] },
     { id: 'e14', source: 'th2y', sourcePort: 0, target: 'us', targetPort: 1, waypoints: [{ x: 960, y: 320 }, { x: 960, y: 220 }] },
-    // Plant input and output
+    // Plant input and output → tap
     { id: 'e15', source: 'us', sourcePort: 0, target: 'plant', targetPort: 0, waypoints: [] },
-    { id: 'e16', source: 'plant', sourcePort: 0, target: 'sy', targetPort: 0, waypoints: [] },
-    // Control signal to scope (tap u from us output)
-    { id: 'e17', source: 'us', sourcePort: 0, target: 'su', targetPort: 0, waypoints: [{ x: 1080, y: 260 }, { x: 1280, y: 260 }] },
-    // Feedback: plant output → error (e = ym - y)
-    { id: 'e18', source: 'plant', sourcePort: 0, target: 'err', targetPort: 1, waypoints: [{ x: 1220, y: 240 }, { x: 1220, y: 440 }, { x: 340, y: 440 }, { x: 340, y: 180 }] },
-    // Feedback: plant output → e·y (for θ₂ adaptation)
-    { id: 'e19', source: 'plant', sourcePort: 0, target: 'ey', targetPort: 1, waypoints: [{ x: 1220, y: 260 }, { x: 1220, y: 460 }, { x: 480, y: 460 }, { x: 480, y: 360 }] },
-    // Feedback: plant output → θ₂·y (for control law)
-    { id: 'e20', source: 'plant', sourcePort: 0, target: 'th2y', targetPort: 1, waypoints: [{ x: 1220, y: 280 }, { x: 1220, y: 480 }, { x: 860, y: 480 }, { x: 860, y: 360 }] },
+    { id: 'e16', source: 'plant', sourcePort: 0, target: 'tap', targetPort: 0, waypoints: [] },
+    // Tap → scopes
+    { id: 'e17', source: 'tap', sourcePort: 0, target: 'sy', targetPort: 0, waypoints: [] },
+    { id: 'e17b', source: 'us', sourcePort: 0, target: 'su', targetPort: 0, waypoints: [{ x: 1080, y: 260 }, { x: 1420, y: 260 }] },
+    // Feedback from tap (non-dynamic) → only plant→tap edge is broken by compiler
+    // tap → error (e = ym - y)
+    { id: 'e18', source: 'tap', sourcePort: 0, target: 'err', targetPort: 1, waypoints: [{ x: 1340, y: 240 }, { x: 1340, y: 440 }, { x: 340, y: 440 }, { x: 340, y: 180 }] },
+    // tap → e·y (for θ₂ adaptation)
+    { id: 'e19', source: 'tap', sourcePort: 0, target: 'ey', targetPort: 1, waypoints: [{ x: 1340, y: 260 }, { x: 1340, y: 460 }, { x: 480, y: 460 }, { x: 480, y: 360 }] },
+    // tap → θ₂·y (for control law)
+    { id: 'e20', source: 'tap', sourcePort: 0, target: 'th2y', targetPort: 1, waypoints: [{ x: 1340, y: 280 }, { x: 1340, y: 480 }, { x: 860, y: 480 }, { x: 860, y: 360 }] },
   ],
-  simConfig: { dt: 0.01, duration: 20 },
+  simConfig: { dt: 0.005, duration: 30 },
 };
 
 export const EXAMPLES: Example[] = [

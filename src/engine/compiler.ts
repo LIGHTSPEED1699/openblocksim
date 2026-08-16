@@ -115,6 +115,12 @@ export function compileGraph(
       const den = (blockParams.den as number[]) ?? [1, 1];
       return Math.max(1, den.length - 1);
     }
+    if (block.type === BlockType.StateSpace) {
+      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const A = (blockParams.A as number[]) ?? [0, 1, -1, -2];
+      const n = Math.round(Math.sqrt(A.length));
+      return Math.max(1, n);
+    }
     return block.stateSize;
   };
 
