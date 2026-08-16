@@ -4,7 +4,7 @@ import type { Node, Edge, XYPosition } from '@xyflow/react';
 import type { BlockType } from '../blocks/types';
 import { BlockCategory } from '../blocks/types';
 
-interface ExportedModel {
+export interface ExportedModel {
   blocks: SerializedGraph['blocks'];
   edges: (SerializedGraph['edges'][number] & { waypoints?: XYPosition[] })[];
   simConfig: { dt: number; duration: number };
@@ -53,6 +53,14 @@ export function exportModel(): void {
 export async function importModel(file: File): Promise<void> {
   const text = await file.text();
   const data = JSON.parse(text) as ExportedModel;
+  loadModel(data);
+}
+
+/**
+ * Load a parsed model into the diagram store, replacing the current model.
+ * Used by both file import and the built-in example gallery.
+ */
+export function loadModel(data: ExportedModel): void {
   if (!data.blocks || !data.edges) {
     throw new Error('Invalid model file: missing blocks or edges');
   }

@@ -6,7 +6,8 @@ import { DiagramCanvas } from './components/DiagramCanvas';
 import { ParameterPanel } from './components/ParameterPanel';
 import { Toolbar } from './components/Toolbar';
 import { PlotArea } from './components/PlotArea';
-import { exportModel, importModel } from './utils/exportImport';
+import { exportModel, importModel, loadModel } from './utils/exportImport';
+import { EXAMPLES } from './examples';
 import type { WorkerMessage } from './engine/types';
 import type { BlockType } from './blocks/types';
 
@@ -32,6 +33,8 @@ export default function App() {
 
   const [showNewMenu, setShowNewMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
+  const [showExamplesMenu, setShowExamplesMenu] = useState(false);
+  const examplesMenuRef = useRef<HTMLDivElement>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [runRevision, setRunRevision] = useState(0);
@@ -51,6 +54,17 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showNewMenu]);
 
+  useEffect(() => {
+    if (!showExamplesMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (examplesMenuRef.current && !examplesMenuRef.current.contains(e.target as Node)) {
+        setShowExamplesMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showExamplesMenu]);
+
   const handleNew = () => {
     setShowNewMenu(true);
   };
@@ -61,6 +75,15 @@ export default function App() {
       exportModel();
     }
     clear();
+  };
+
+  const handleLoadExample = (exampleId: string) => {
+    const example = EXAMPLES.find((ex) => ex.id === exampleId);
+    if (!example) return;
+    setShowExamplesMenu(false);
+    setSimResults(null);
+    setSimError(null);
+    loadModel(example.model);
   };
 
   const selectedNode = nodes.find((n) => n.id === selectedBlockId);
@@ -204,6 +227,31 @@ export default function App() {
             }}
           />
         </label>
+        <div ref={examplesMenuRef} className="relative">
+          <button
+            onClick={() => setShowExamplesMenu((v) => !v)}
+            className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:opacity-80"
+          >
+            Examples
+          </button>
+          {showExamplesMenu && (
+            <div className="absolute bottom-full left-0 mb-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded shadow-lg py-1 z-50 min-w-[280px] max-h-[60vh] overflow-y-auto">
+              <div className="px-3 py-2 text-[var(--text-secondary)]">
+                Prebuilt examples — replaces current model
+              </div>
+              {EXAMPLES.map((ex) => (
+                <button
+                  key={ex.id}
+                  onClick={() => handleLoadExample(ex.id)}
+                  className="block w-full text-left px-3 py-1.5 hover:bg-[var(--bg-secondary)]"
+                >
+                  <div className="text-[var(--text-primary)] text-sm font-medium">{ex.name}</div>
+                  <div className="text-[var(--text-secondary)] text-xs">{ex.description}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex-1" />
         <a
           href="https://hongbinli.ca/tools/"
