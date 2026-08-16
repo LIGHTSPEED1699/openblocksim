@@ -54,14 +54,17 @@ const secondOrderStep: ExportedModel = {
 };
 
 // ---- Example 3: PID Closed-Loop Control ---------------------------------
-//                       ┌──────────────────────────────┐
-//                       ▼                              │
-//  Step ──▶ Sum(+) ──▶ PID ──▶ 1/(s^2+s+1) ──▶ Scope    │ (feedback: plant → Sum in-1)
-//           error
+//  Step ──▶ Sum(+) ──▶ PID ──▶ 1/(s^2+s+1) ──▶ Scope
+//           error  ▲        ▲
+//                  │        └── PV ──┐  (ISA form: derivative acts on PV, not error)
+//                  └──────── feedback ┘  (PV → Sum negative input)
 //  Closed-loop PID tracking a unit step. The plant is an underdamped
-//  second-order system; the controller damps the response. The feedback
-//  edge is broken at the dynamic plant block (one-step delay), so no
-//  algebraic loop is formed.
+//  second-order system; the controller damps the response. The plant's
+//  output (PV) feeds BOTH the Sum's negative input (error) and the PID's
+//  PV input (in-1) — the ISA standard form derives on PV to avoid
+//  derivative kick on setpoint changes. Both feedback edges are broken at
+//  the dynamic plant block (one-step delay), so no algebraic loop is
+//  formed; both use the same previous-step PV, keeping them consistent.
 const pidClosedLoop: ExportedModel = {
   blocks: [
     { id: 'setpoint', type: BlockType.Step, params: { stepTime: 0, stepValue: 1 }, position: { x: 60, y: 240 } },
@@ -75,7 +78,12 @@ const pidClosedLoop: ExportedModel = {
     { id: 'e2', source: 'sum', sourcePort: 0, target: 'pid', targetPort: 0, waypoints: [] },
     { id: 'e3', source: 'pid', sourcePort: 0, target: 'plant', targetPort: 0, waypoints: [] },
     { id: 'e4', source: 'plant', sourcePort: 0, target: 'scope', targetPort: 0, waypoints: [] },
-    { id: 'e5', source: 'plant', sourcePort: 0, target: 'sum', targetPort: 1, waypoints: [{ x: 580, y: 340 }, { x: 240, y: 340 }] },
+    // Feedback: plant output → Sum negative input (PV for the error).
+    // Routed down the RIGHT side of the plant so the wire visibly taps
+    // G(s)'s output rather than crossing its input side.
+    { id: 'e5', source: 'plant', sourcePort: 0, target: 'sum', targetPort: 1, waypoints: [{ x: 700, y: 380 }, { x: 240, y: 380 }] },
+    // PID PV input: plant output → PID in-1. ISA form derives on PV.
+    { id: 'e6', source: 'plant', sourcePort: 0, target: 'pid', targetPort: 1, waypoints: [{ x: 700, y: 320 }, { x: 380, y: 320 }, { x: 380, y: 268 }] },
   ],
   simConfig: { dt: 0.01, duration: 15 },
 };
