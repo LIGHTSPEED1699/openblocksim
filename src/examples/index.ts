@@ -251,25 +251,30 @@ const drumLevelThreeElement: ExportedModel = {
 //  This matches the discrete-time MRAC where the previous step's y is used
 //  for all feedback paths — a single one-step delay, not triple.
 //
-//  Adaptation gains are reduced (γ=0.1 vs 0.5 on the tool page) to account
-//  for RK4's higher sensitivity to the delayed feedback phase.
+//  Uses a step reference (r=1) instead of square wave. A persistent reference
+//  lets the adaptation converge to the ideal parameters (θ₁→1, θ₂→1) and the
+//  plant output tracks the reference model output. A square wave would keep
+//  re-exciting the system, and the compiler's one-step feedback delay adds
+//  phase lag that prevents convergence under persistent oscillation.
+//
+//  Adaptation gains γ=0.5 match the tool page.
 const mracLyapunov: ExportedModel = {
   blocks: [
-    // Reference signal r(t) — square wave, period 10s
-    { id: 'sq', type: BlockType.Square, params: { amplitude: 1, frequency: 0.1, phase: 0 }, position: { x: 60, y: 140 } },
+    // Reference signal r(t) — unit step
+    { id: 'sq', type: BlockType.Step, params: { stepTime: 0, stepValue: 1 }, position: { x: 60, y: 140 } },
     // Reference model: ẏm = -ym + r  (am=1, bm=1)
     { id: 'ref', type: BlockType.StateSpace, params: { A: [-1], B: [1], C: [1], D: [0] }, position: { x: 200, y: 140 } },
     // Error: e = ym - y
     { id: 'err', type: BlockType.Sum, params: { signs: [1, -1] }, position: { x: 340, y: 140 } },
     // θ₁ adaptation: e·r → γ₁ → integrator
     { id: 'er', type: BlockType.Product, params: {}, position: { x: 480, y: 80 } },
-    { id: 'g1', type: BlockType.Gain, params: { gain: 0.1 }, position: { x: 600, y: 80 } },
+    { id: 'g1', type: BlockType.Gain, params: { gain: 0.5 }, position: { x: 600, y: 80 } },
     { id: 'th1', type: BlockType.Integrator, params: {}, position: { x: 720, y: 80 } },
     // Control contribution: θ₁·r
     { id: 'th1r', type: BlockType.Product, params: {}, position: { x: 860, y: 80 } },
     // θ₂ adaptation: e·y → γ₂ → integrator
     { id: 'ey', type: BlockType.Product, params: {}, position: { x: 480, y: 320 } },
-    { id: 'g2', type: BlockType.Gain, params: { gain: 0.1 }, position: { x: 600, y: 320 } },
+    { id: 'g2', type: BlockType.Gain, params: { gain: 0.5 }, position: { x: 600, y: 320 } },
     { id: 'th2', type: BlockType.Integrator, params: {}, position: { x: 720, y: 320 } },
     // Control contribution: θ₂·y
     { id: 'th2y', type: BlockType.Product, params: {}, position: { x: 860, y: 320 } },
@@ -318,7 +323,7 @@ const mracLyapunov: ExportedModel = {
     // tap → θ₂·y (for control law)
     { id: 'e20', source: 'tap', sourcePort: 0, target: 'th2y', targetPort: 1, waypoints: [{ x: 1340, y: 280 }, { x: 1340, y: 480 }, { x: 860, y: 480 }, { x: 860, y: 360 }] },
   ],
-  simConfig: { dt: 0.005, duration: 30 },
+  simConfig: { dt: 0.005, duration: 20 },
 };
 
 export const EXAMPLES: Example[] = [
