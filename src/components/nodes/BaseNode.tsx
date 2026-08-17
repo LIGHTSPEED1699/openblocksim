@@ -35,6 +35,8 @@ const ICONS: Record<string, string> = {
   // Sinks
   Scope: '⊘',
   ToWorkspace: 'W',
+  // Annotation
+  Comment: '✎',
 };
 
 export function BaseNode({ id, data }: NodeProps) {

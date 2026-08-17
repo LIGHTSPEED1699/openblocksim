@@ -22,6 +22,7 @@ import { Saturation } from '../blocks/nonlinear/Saturation';
 import { Deadzone } from '../blocks/nonlinear/Deadzone';
 import { PID } from '../blocks/control/PID';
 import { Relay } from '../blocks/control/Relay';
+import { Comment } from '../blocks/annotation/Comment';
 import type { WorkerMessage } from './types';
 
 function createRegistry(): BlockRegistry {
@@ -45,6 +46,7 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.Deadzone, Deadzone);
   r.register(BlockType.PID, PID);
   r.register(BlockType.Relay, Relay);
+  r.register(BlockType.Comment, Comment);
   return r;
 }
 

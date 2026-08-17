@@ -21,6 +21,7 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.Deadzone]: '⊣',
   [BlockType.PID]: 'PID',
   [BlockType.Relay]: '⇌',
+  [BlockType.Comment]: '✎',
 };
 
 const BLOCK_GROUPS: { label: string; accent: string; blocks: BlockType[] }[] = [
@@ -30,6 +31,7 @@ const BLOCK_GROUPS: { label: string; accent: string; blocks: BlockType[] }[] = [
   { label: 'Linear', accent: 'border-l-purple-500', blocks: [BlockType.TransferFunction, BlockType.StateSpace, BlockType.Integrator, BlockType.Derivative, BlockType.TransportDelay] },
   { label: 'Nonlinear', accent: 'border-l-red-500', blocks: [BlockType.Saturation, BlockType.Deadzone] },
   { label: 'Control', accent: 'border-l-teal-500', blocks: [BlockType.PID, BlockType.Relay] },
+  { label: 'Annotation', accent: 'border-l-amber-500', blocks: [BlockType.Comment] },
 ];
 
 interface Props {

@@ -18,6 +18,7 @@ export enum BlockType {
   Deadzone = 'Deadzone',
   PID = 'PID',
   Relay = 'Relay',
+  Comment = 'Comment',
 }
 
 export enum BlockCategory {
@@ -27,15 +28,16 @@ export enum BlockCategory {
   Linear = 'Linear',
   Nonlinear = 'Nonlinear',
   Control = 'Control',
+  Annotation = 'Annotation',
 }
 
-export type Params = Record<string, number | number[]>;
+export type Params = Record<string, number | number[] | string>;
 export type BlockState = number[];
 
 export interface ParamSpec {
   [key: string]: {
-    type: 'number' | 'array' | 'select';
-    default: number | number[];
+    type: 'number' | 'array' | 'select' | 'text';
+    default: number | number[] | string;
     min?: number;
     max?: number;
     step?: number;

@@ -58,6 +58,9 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
     switchOn: { type: 'number', default: 0.5, label: 'Switch On Threshold' },
     switchOff: { type: 'number', default: -0.5, label: 'Switch Off Threshold' },
   },
+  [BlockType.Comment]: {
+    text: { type: 'text', default: 'Double-click to edit', label: 'Text' },
+  },
 };
 
 interface Props {
@@ -145,6 +148,19 @@ export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }:
               value={value}
               onCommit={(arr) => onUpdate(selectedBlockId, { [key]: arr })}
             />
+          );
+        }
+        if (paramSpec.type === 'text') {
+          return (
+            <div key={key} className="mb-3">
+              <label className="block text-xs text-[var(--text-secondary)] mb-1">{paramSpec.label}</label>
+              <textarea
+                value={value as string}
+                rows={3}
+                onChange={(e) => onUpdate(selectedBlockId, { [key]: e.target.value })}
+                className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)] resize-y"
+              />
+            </div>
           );
         }
         return null;

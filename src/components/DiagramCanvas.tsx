@@ -47,8 +47,11 @@ import { Saturation } from '../blocks/nonlinear/Saturation';
 import { Deadzone } from '../blocks/nonlinear/Deadzone';
 import { PID } from '../blocks/control/PID';
 import { Relay } from '../blocks/control/Relay';
+import { Comment } from '../blocks/annotation/Comment';
+import { CommentNode } from './nodes/CommentNode';
 
 const FACTORIES: Record<BlockType, BlockFactory> = {
+  [BlockType.Comment]: Comment,
   [BlockType.Constant]: Constant,
   [BlockType.Step]: Step,
   [BlockType.Ramp]: Ramp,
@@ -77,6 +80,7 @@ const nodeTypes = {
   Linear: LinearNode,
   Nonlinear: NonlinearNode,
   Control: ControlNode,
+  Annotation: CommentNode,
 };
 
 const edgeTypes = {
