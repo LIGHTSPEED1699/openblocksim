@@ -326,6 +326,35 @@ const mracLyapunov: ExportedModel = {
   simConfig: { dt: 0.005, duration: 20 },
 };
 
+// ---- Example 8: VFD Motor Control (Imported from Simulink) ---------------
+//  Imported from VF_Control.slx in github.com/Turki-Alzhrani/VFD-for-Induction-Motor.
+//  This is a best-effort import: 10 of 59 Simulink blocks are supported by
+//  OpenBlockSim (Constant, Gain, Integrator, Sum, Scope, Rounding). The
+//  remaining 49 blocks are Simscape Power Systems components (Asynchronous
+//  Machine, AC Voltage Sources, Bus Selector, Mux, Fcn, KnobBlock, etc.)
+//  that require vector signals or Simscape solvers OpenBlockSim does not
+//  provide. The supported blocks represent the control logic layer.
+const vfdImported: ExportedModel = {
+  blocks: [
+    { id: 'constant1', type: BlockType.Constant, params: { value: 1 }, position: { x: 60, y: 200 } },
+    { id: 'rounding', type: BlockType.RoundingFunction, params: {}, position: { x: 240, y: 200 } },
+    { id: 'subtract', type: BlockType.Sum, params: { signs: [1, 1] }, position: { x: 420, y: 200 } },
+    { id: 'gain3', type: BlockType.Gain, params: { gain: 1 }, position: { x: 580, y: 140 } },
+    { id: 'gain2', type: BlockType.Gain, params: { gain: 1 }, position: { x: 580, y: 280 } },
+    { id: 'integrator', type: BlockType.Integrator, params: { initialValue: 0 }, position: { x: 740, y: 280 } },
+    { id: 'gain1', type: BlockType.Gain, params: { gain: 1 }, position: { x: 900, y: 160 } },
+    { id: 'gain', type: BlockType.Gain, params: { gain: 1 }, position: { x: 900, y: 240 } },
+    { id: 'scope', type: BlockType.Scope, params: {}, position: { x: 1080, y: 160 } },
+    { id: 'speed_current', type: BlockType.Scope, params: {}, position: { x: 1080, y: 280 } },
+  ],
+  edges: [
+    { id: 'e1', source: 'constant1', sourcePort: 0, target: 'rounding', targetPort: 0, waypoints: [] },
+    { id: 'e2', source: 'gain2', sourcePort: 0, target: 'integrator', targetPort: 0, waypoints: [] },
+    { id: 'e3', source: 'gain', sourcePort: 0, target: 'speed_current', targetPort: 0, waypoints: [] },
+  ],
+  simConfig: { dt: 0.01, duration: 10 },
+};
+
 export const EXAMPLES: Example[] = [
   { id: 'first-order-step', name: 'First-Order Step Response', description: 'Exponential rise of a 1/(s+1) lag to a unit step.', model: firstOrderStep },
   { id: 'second-order-step', name: 'Second-Order Underdamped Step', description: 'Decaying oscillatory response of 1/(s^2 + 0.4s + 1).', model: secondOrderStep },
@@ -334,4 +363,5 @@ export const EXAMPLES: Example[] = [
   { id: 'relay-bang-bang', name: 'Relay Bang-Bang Control', description: 'On/off control with hysteresis producing a limit cycle.', model: relayBangBang },
   { id: 'drum-level-3element', name: 'Three-Element Drum Level Control', description: 'Cascade PID with steam flow feedforward for a boiler drum with inverse-response dynamics.', model: drumLevelThreeElement },
   { id: 'mrac-lyapunov', name: 'Model Reference Adaptive Control', description: 'Lyapunov-based MRAC — controller adapts online to track a reference model with unknown plant parameters.', model: mracLyapunov },
+  { id: 'vfd-imported', name: 'VFD Motor Control (Imported from Simulink)', description: 'Supported blocks extracted from VF_Control.slx (github.com/Turki-Alzhrani/VFD-for-Induction-Motor). 10 of 59 blocks imported — Constant, Gain, Integrator, Sum, Scope, Rounding. Simscape electrical blocks (Reference, Mux, BusSelector, Fcn) are unsupported.', model: vfdImported },
 ];

@@ -20,6 +20,7 @@ import { Saturation } from '../../src/blocks/nonlinear/Saturation';
 import { Deadzone } from '../../src/blocks/nonlinear/Deadzone';
 import { PID } from '../../src/blocks/control/PID';
 import { Relay } from '../../src/blocks/control/Relay';
+import { RoundingFunction } from '../../src/blocks/math/RoundingFunction';
 import { compileGraph } from '../../src/engine/compiler';
 import { solve } from '../../src/engine/solver';
 import { validateGraph } from '../../src/engine/validate';
@@ -46,6 +47,7 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.Deadzone, Deadzone);
   r.register(BlockType.PID, PID);
   r.register(BlockType.Relay, Relay);
+  r.register(BlockType.RoundingFunction, RoundingFunction);
   return r;
 }
 
