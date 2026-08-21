@@ -61,6 +61,69 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
   [BlockType.Comment]: {
     text: { type: 'text', default: 'Double-click to edit', label: 'Text' },
   },
+  [BlockType.Abs]: {},
+  [BlockType.Sign]: {},
+  [BlockType.Bias]: { bias: { type: 'number', default: 0, label: 'Bias' } },
+  [BlockType.UnaryMinus]: {},
+  [BlockType.Divide]: {},
+  [BlockType.MinMax]: {
+    mode: { type: 'select', default: 'min', label: 'Mode' },
+  },
+  [BlockType.RoundingFunction]: {
+    mode: { type: 'select', default: 'round', label: 'Rounding Mode' },
+  },
+  [BlockType.MathFunction]: {
+    mode: { type: 'select', default: 'exp', label: 'Function' },
+    exponent: { type: 'number', default: 2, label: 'Exponent (power mode)' },
+  },
+  [BlockType.TrigFunction]: {
+    mode: { type: 'select', default: 'sin', label: 'Function' },
+  },
+  [BlockType.Switch]: {
+    threshold: { type: 'number', default: 0, label: 'Threshold' },
+    condition: { type: 'select', default: 'u2>=threshold', label: 'Condition' },
+  },
+  [BlockType.UnitDelay]: { initialValue: { type: 'number', default: 0, label: 'Initial Value' } },
+  [BlockType.DiscreteIntegrator]: {
+    method: { type: 'select', default: 'forward-euler', label: 'Integration Method' },
+    initialValue: { type: 'number', default: 0, label: 'Initial Value' },
+  },
+  [BlockType.DiscreteTransferFcn]: {
+    num: { type: 'array', default: [1], label: 'Numerator (descending z)' },
+    den: { type: 'array', default: [1, -0.5], label: 'Denominator (descending z)' },
+  },
+  [BlockType.Memory]: { initialValue: { type: 'number', default: 0, label: 'Initial Value' } },
+  [BlockType.RateLimiter]: {
+    risingSlew: { type: 'number', default: 1, label: 'Rising Slew Rate' },
+    fallingSlew: { type: 'number', default: -1, label: 'Falling Slew Rate' },
+  },
+  [BlockType.Quantizer]: { quantum: { type: 'number', default: 0.5, min: 0, step: 0.1, label: 'Quantization Interval' } },
+  [BlockType.Backlash]: { deadbandWidth: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Deadband Width' } },
+  [BlockType.PulseGenerator]: {
+    amplitude: { type: 'number', default: 1, label: 'Amplitude' },
+    period: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Period (s)' },
+    dutyCycle: { type: 'number', default: 50, min: 0, max: 100, step: 1, label: 'Duty Cycle (%)' },
+    phaseDelay: { type: 'number', default: 0, label: 'Phase Delay (s)' },
+  },
+  [BlockType.Clock]: {},
+  [BlockType.ChirpSignal]: {
+    amplitude: { type: 'number', default: 1, label: 'Amplitude' },
+    startFreq: { type: 'number', default: 0.1, min: 0, step: 0.1, label: 'Start Frequency (Hz)' },
+    targetFreq: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Target Frequency (Hz)' },
+    sweepTime: { type: 'number', default: 10, min: 0, step: 0.1, label: 'Sweep Time (s)' },
+  },
+  [BlockType.RepeatingSequence]: {
+    timeValues: { type: 'array', default: [0, 1, 2, 3], label: 'Time Values' },
+    outputValues: { type: 'array', default: [0, 1, 0, 1], label: 'Output Values' },
+  },
+  [BlockType.RandomNumber]: {
+    mean: { type: 'number', default: 0, label: 'Mean' },
+    stdDev: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Standard Deviation' },
+    seed: { type: 'number', default: 0, label: 'Seed (0=random)' },
+  },
+  [BlockType.Terminator]: {},
+  [BlockType.Display]: {},
+  [BlockType.StopSimulation]: {},
 };
 
 interface Props {

@@ -121,6 +121,12 @@ export function compileGraph(
       const n = Math.round(Math.sqrt(A.length));
       return Math.max(1, n);
     }
+    if (block.type === BlockType.DiscreteTransferFcn) {
+      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const den = (blockParams.den as number[]) ?? [1, -0.5];
+      const num = (blockParams.num as number[]) ?? [1];
+      return Math.max(den.length - 1, num.length - 1, 1);
+    }
     return block.stateSize;
   };
 

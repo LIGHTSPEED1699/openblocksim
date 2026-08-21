@@ -48,7 +48,34 @@ import { Deadzone } from '../blocks/nonlinear/Deadzone';
 import { PID } from '../blocks/control/PID';
 import { Relay } from '../blocks/control/Relay';
 import { Comment } from '../blocks/annotation/Comment';
+import { Abs } from '../blocks/math/Abs';
+import { Sign } from '../blocks/math/Sign';
+import { Bias } from '../blocks/math/Bias';
+import { UnaryMinus } from '../blocks/math/UnaryMinus';
+import { Divide } from '../blocks/math/Divide';
+import { MinMax } from '../blocks/math/MinMax';
+import { RoundingFunction } from '../blocks/math/RoundingFunction';
+import { MathFunction } from '../blocks/math/MathFunction';
+import { TrigFunction } from '../blocks/math/TrigFunction';
+import { Switch } from '../blocks/routing/Switch';
+import { UnitDelay } from '../blocks/discrete/UnitDelay';
+import { DiscreteIntegrator } from '../blocks/discrete/DiscreteIntegrator';
+import { DiscreteTransferFcn } from '../blocks/discrete/DiscreteTransferFcn';
+import { Memory } from '../blocks/discrete/Memory';
+import { RateLimiter } from '../blocks/nonlinear/RateLimiter';
+import { Quantizer } from '../blocks/nonlinear/Quantizer';
+import { Backlash } from '../blocks/nonlinear/Backlash';
+import { PulseGenerator } from '../blocks/sources/PulseGenerator';
+import { Clock } from '../blocks/sources/Clock';
+import { ChirpSignal } from '../blocks/sources/ChirpSignal';
+import { RepeatingSequence } from '../blocks/sources/RepeatingSequence';
+import { RandomNumber } from '../blocks/sources/RandomNumber';
+import { Terminator } from '../blocks/sinks/Terminator';
+import { Display } from '../blocks/sinks/Display';
+import { StopSimulation } from '../blocks/sinks/StopSimulation';
 import { CommentNode } from './nodes/CommentNode';
+import { RoutingNode } from './nodes/RoutingNode';
+import { DiscreteNode } from './nodes/DiscreteNode';
 
 const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.Comment]: Comment,
@@ -71,6 +98,31 @@ const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.Deadzone]: Deadzone,
   [BlockType.PID]: PID,
   [BlockType.Relay]: Relay,
+  [BlockType.Abs]: Abs,
+  [BlockType.Sign]: Sign,
+  [BlockType.Bias]: Bias,
+  [BlockType.UnaryMinus]: UnaryMinus,
+  [BlockType.Divide]: Divide,
+  [BlockType.MinMax]: MinMax,
+  [BlockType.RoundingFunction]: RoundingFunction,
+  [BlockType.MathFunction]: MathFunction,
+  [BlockType.TrigFunction]: TrigFunction,
+  [BlockType.Switch]: Switch,
+  [BlockType.UnitDelay]: UnitDelay,
+  [BlockType.DiscreteIntegrator]: DiscreteIntegrator,
+  [BlockType.DiscreteTransferFcn]: DiscreteTransferFcn,
+  [BlockType.Memory]: Memory,
+  [BlockType.RateLimiter]: RateLimiter,
+  [BlockType.Quantizer]: Quantizer,
+  [BlockType.Backlash]: Backlash,
+  [BlockType.PulseGenerator]: PulseGenerator,
+  [BlockType.Clock]: Clock,
+  [BlockType.ChirpSignal]: ChirpSignal,
+  [BlockType.RepeatingSequence]: RepeatingSequence,
+  [BlockType.RandomNumber]: RandomNumber,
+  [BlockType.Terminator]: Terminator,
+  [BlockType.Display]: Display,
+  [BlockType.StopSimulation]: StopSimulation,
 };
 
 const nodeTypes = {
@@ -80,6 +132,8 @@ const nodeTypes = {
   Linear: LinearNode,
   Nonlinear: NonlinearNode,
   Control: ControlNode,
+  Routing: RoutingNode,
+  Discrete: DiscreteNode,
   Annotation: CommentNode,
 };
 

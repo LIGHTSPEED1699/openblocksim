@@ -19,6 +19,31 @@ export enum BlockType {
   PID = 'PID',
   Relay = 'Relay',
   Comment = 'Comment',
+  Abs = 'Abs',
+  Sign = 'Sign',
+  Bias = 'Bias',
+  UnaryMinus = 'UnaryMinus',
+  Divide = 'Divide',
+  MinMax = 'MinMax',
+  RoundingFunction = 'RoundingFunction',
+  MathFunction = 'MathFunction',
+  TrigFunction = 'TrigFunction',
+  Switch = 'Switch',
+  UnitDelay = 'UnitDelay',
+  DiscreteIntegrator = 'DiscreteIntegrator',
+  DiscreteTransferFcn = 'DiscreteTransferFcn',
+  Memory = 'Memory',
+  RateLimiter = 'RateLimiter',
+  Quantizer = 'Quantizer',
+  Backlash = 'Backlash',
+  PulseGenerator = 'PulseGenerator',
+  Clock = 'Clock',
+  ChirpSignal = 'ChirpSignal',
+  RepeatingSequence = 'RepeatingSequence',
+  RandomNumber = 'RandomNumber',
+  Terminator = 'Terminator',
+  Display = 'Display',
+  StopSimulation = 'StopSimulation',
 }
 
 export enum BlockCategory {
@@ -28,7 +53,9 @@ export enum BlockCategory {
   Linear = 'Linear',
   Nonlinear = 'Nonlinear',
   Control = 'Control',
+  Routing = 'Routing',
   Annotation = 'Annotation',
+  Discrete = 'Discrete',
 }
 
 export type Params = Record<string, number | number[] | string>;
