@@ -1,5 +1,6 @@
 import { BlockType, type Params } from '../blocks/types';
 import type { ExportedModel } from './exportImport';
+import { unzipSync, strFromU8 } from 'fflate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ const BLOCK_TYPE_MAP: Record<string, BlockType> = {
   Quantizer: BlockType.Quantizer,
   RateLimiter: BlockType.RateLimiter,
   Backlash: BlockType.Backlash,
+  Rounding: BlockType.RoundingFunction,
   UnitDelay: BlockType.UnitDelay,
   DiscreteIntegrator: BlockType.DiscreteIntegrator,
   DiscreteTransferFcn: BlockType.DiscreteTransferFcn,
@@ -379,10 +381,28 @@ export function parseSLXXml(xml: string): ParsedModel {
   return { blocks, lines };
 }
 
+// ─── SLX binary parser (ZIP → XML → blocks + lines) ──────────────────────────
+
+export function parseSLXBuffer(buffer: ArrayBuffer): ParsedModel {
+  const files = unzipSync(new Uint8Array(buffer));
+  // Newer SLX: blocks in simulink/systems/system_root.xml
+  // Older SLX: blocks in simulink/blockdiagram.xml
+  let xml = '';
+  const systemKey = Object.keys(files).find(k => k.includes('systems/system_root.xml'));
+  if (systemKey) {
+    xml = strFromU8(files[systemKey]);
+  } else {
+    const bdKey = Object.keys(files).find(k => k.includes('blockdiagram.xml'));
+    if (bdKey) xml = strFromU8(files[bdKey]);
+  }
+  if (!xml) throw new Error('No blockdiagram.xml or system_root.xml found in .slx file');
+  return parseSLXXml(xml);
+}
+
 // ─── Full import pipeline ─────────────────────────────────────────────────────
 
-export function importSimulinkModel(input: string, format: 'slx' | 'mdl'): ImportResult {
-  const parsed = format === 'mdl' ? parseMDL(input) : parseSLXXml(input);
+export function importSimulinkModel(input: string | ArrayBuffer, format: 'slx' | 'mdl'): ImportResult {
+  const parsed = format === 'mdl' ? parseMDL(input as string) : parseSLXBuffer(input as ArrayBuffer);
 
   const warnings: string[] = [];
   const unsupportedTypes = new Set<string>();

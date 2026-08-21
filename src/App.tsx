@@ -234,10 +234,17 @@ export default function App() {
               const file = e.target.files?.[0];
               if (!file) return;
               try {
-                if (file.name.endsWith('.slx') || file.name.endsWith('.mdl')) {
+                if (file.name.endsWith('.slx')) {
+                  const buffer = await file.arrayBuffer();
+                  const result = importSimulinkModel(buffer, 'slx');
+                  loadModel(result.model);
+                  const s = result.summary;
+                  if (s.unsupportedBlocks > 0) {
+                    setSimError(`Imported: ${s.supportedBlocks} supported, ${s.unsupportedBlocks} unsupported (${s.unsupportedTypes.join(', ')}). ${s.warnings.length} warnings.`);
+                  }
+                } else if (file.name.endsWith('.mdl')) {
                   const text = await file.text();
-                  const format = file.name.endsWith('.slx') ? 'slx' : 'mdl';
-                  const result = importSimulinkModel(text, format);
+                  const result = importSimulinkModel(text, 'mdl');
                   loadModel(result.model);
                   const s = result.summary;
                   if (s.unsupportedBlocks > 0) {
