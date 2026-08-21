@@ -117,6 +117,9 @@ export default function App() {
       graph,
       dt: store.simConfig.dt,
       duration: store.simConfig.duration,
+      solverType: store.simConfig.solverType ?? 'fixed',
+      rtol: store.simConfig.rtol,
+      atol: store.simConfig.atol,
     };
     worker.postMessage(msg);
     worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
@@ -160,6 +163,12 @@ export default function App() {
         onToggleTheme={toggleTheme}
         isRunning={isRunning}
         runStatus={runStatus}
+        solverType={simConfig.solverType ?? 'fixed'}
+        onSolverTypeChange={(solverType) => setSimConfig({ solverType })}
+        rtol={simConfig.rtol ?? 1e-4}
+        atol={simConfig.atol ?? 1e-6}
+        onRtolChange={(rtol) => setSimConfig({ rtol })}
+        onAtolChange={(atol) => setSimConfig({ atol })}
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />

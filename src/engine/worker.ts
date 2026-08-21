@@ -1,6 +1,6 @@
 import { validateGraph } from './validate';
 import { compileGraph } from './compiler';
-import { solve } from './solver';
+import { solve, solveAdaptive } from './solver';
 import { BlockRegistry } from '../blocks/registry';
 import { BlockType } from '../blocks/types';
 import { Constant } from '../blocks/sources/Constant';
@@ -117,7 +117,15 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 
   try {
     const model = compileGraph(msg.graph, registry, msg.dt);
-    const result = solve(model, { dt: msg.dt, duration: msg.duration }, new Array(model.stateSize).fill(0));
+    const solverType = msg.solverType ?? 'fixed';
+    let result;
+    if (solverType === 'adaptive') {
+      const rtol = msg.rtol ?? 1e-4;
+      const atol = msg.atol ?? 1e-6;
+      result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol }, new Array(model.stateSize).fill(0));
+    } else {
+      result = solve(model, { dt: msg.dt, duration: msg.duration }, new Array(model.stateSize).fill(0));
+    }
     const doneMsg: WorkerMessage = { type: 'done', results: result };
     (self as any).postMessage(doneMsg);
   } catch (err) {

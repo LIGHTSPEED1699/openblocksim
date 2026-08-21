@@ -6,6 +6,9 @@ import { BlockType, Params } from '../blocks/types';
 interface SimConfig {
   dt: number;
   duration: number;
+  solverType?: 'fixed' | 'adaptive';
+  rtol?: number;
+  atol?: number;
 }
 
 interface SimResults {

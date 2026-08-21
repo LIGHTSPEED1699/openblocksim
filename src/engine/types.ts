@@ -23,12 +23,16 @@ export interface SerializedGraph {
 export interface SimConfig {
   dt: number;
   duration: number;
+  solverType?: 'fixed' | 'adaptive';
+  rtol?: number;
+  atol?: number;
 }
 
 export interface SimResult {
   time: number[];
   traces: Record<string, number[]>; // blockId → output values over time
   scopes: Record<string, number[]>; // scopeBlockId → input values over time
+  actualSteps?: number;
 }
 
 export interface CompiledModel {
@@ -46,7 +50,7 @@ export interface CompiledModel {
 }
 
 export type WorkerMessage =
-  | { type: 'run'; graph: SerializedGraph; dt: number; duration: number }
+  | { type: 'run'; graph: SerializedGraph; dt: number; duration: number; solverType?: 'fixed' | 'adaptive'; rtol?: number; atol?: number }
   | { type: 'cancel' }
   | { type: 'progress'; percent: number }
   | { type: 'done'; results: SimResult }
