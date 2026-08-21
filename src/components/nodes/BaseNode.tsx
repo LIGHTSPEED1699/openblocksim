@@ -39,13 +39,57 @@ const ICONS: Record<string, string> = {
   Comment: '✎',
 };
 
+// Build a readable G(s) string from numerator/denominator coefficients.
+// e.g. [1] / [1, 1] → "1/(s+1)", [2] / [1, 0.4, 1] → "2/(s²+0.4s+1)"
+function polyString(coeffs: number[]): string {
+  const n = coeffs.length;
+  if (n === 1) return formatCoeff(coeffs[0]);
+  const terms: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = coeffs[i];
+    if (c === 0) continue;
+    const power = n - 1 - i;
+    const coeffStr = c === 1 && power > 0 ? '' : c === -1 && power > 0 ? '-' : formatCoeff(c);
+    const varStr = power === 0 ? '' : power === 1 ? 's' : `s${superscript(power)}`;
+    terms.push(coeffStr + varStr);
+  }
+  return terms.join('+').replace('+-', '-');
+}
+
+function formatCoeff(c: number): string {
+  return Number.isInteger(c) ? String(c) : c.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function superscript(n: number): string {
+  const map: Record<number, string> = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+  return String(n).split('').map(d => map[+d] ?? d).join('');
+}
+
+function tfToString(num: number[], den: number[]): string {
+  const numStr = polyString(num);
+  const denStr = polyString(den);
+  // Short form: if denominator is just a constant, show num/den directly
+  if (den.length === 1) return `${numStr}/${denStr}`;
+  return `${numStr}/(${denStr})`;
+}
+
 export function BaseNode({ id, data }: NodeProps) {
   const nodeData = data as unknown as BaseNodeData;
   const selectedBlockId = useDiagramStore((s) => s.selectedBlockId);
   const params = useDiagramStore((s) => s.params[id]);
   const isSelected = id === selectedBlockId;
 
-  const icon = ICONS[nodeData.type] ?? nodeData.type;
+  let icon = ICONS[nodeData.type] ?? nodeData.type;
+
+  // TransferFunction: show actual formula from num/den params
+  if (nodeData.type === 'TransferFunction' && params) {
+    const num = params.num as number[] | undefined;
+    const den = params.den as number[] | undefined;
+    if (num && den) {
+      icon = tfToString(num, den);
+    }
+  }
+
   const isImageBlock = nodeData.type === 'Scope' || nodeData.type === 'Step';
   const theme = useDiagramStore((s) => s.theme);
   const imgIcon = theme === 'dark'
@@ -73,7 +117,7 @@ export function BaseNode({ id, data }: NodeProps) {
     >
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
-      <span className="text-sm font-medium text-slate-800 dark:text-slate-100 select-none">
+      <span className={`select-none ${nodeData.type === 'TransferFunction' && params?.num ? 'text-[10px] font-mono' : 'text-sm font-medium'} text-slate-800 dark:text-slate-100`}>
         {isImageBlock ? (
           <img src={imgIcon} alt={nodeData.type} className="w-5 h-5 inline-block" />
         ) : (
