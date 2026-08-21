@@ -16,7 +16,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
-import { BlockType, BlockCategory, type BlockFactory } from '../blocks/types';
+import { BlockType, BlockCategory, type BlockFactory, type Params } from '../blocks/types';
 import { StraightEdge } from './edges/StraightEdge';
 import { ConnectionPreview } from './ConnectionPreview';
 import { WireOverlay } from './WireOverlay';
@@ -141,8 +141,8 @@ const edgeTypes = {
   straight: StraightEdge,
 };
 
-function blockMeta(type: BlockType): { inputs: number; outputs: number; category: BlockCategory } {
-  const block = FACTORIES[type].create();
+function blockMeta(type: BlockType, existingParams?: Params): { inputs: number; outputs: number; category: BlockCategory } {
+  const block = FACTORIES[type].create(existingParams);
   return { inputs: block.inputs, outputs: block.outputs, category: block.category };
 }
 

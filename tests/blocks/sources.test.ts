@@ -50,6 +50,17 @@ describe('Sine block', () => {
     const [out] = block.compute(0.01, [], [], { amplitude: 1, frequency: 1, phase: 0 }, 0);
     expect(out[0]).toBeCloseTo(0, 5);
   });
+  it('adds bias (DC offset) to output', () => {
+    const block = Sine.create({ bias: 5 });
+    const [out] = block.compute(0.01, [], [], { amplitude: 2, frequency: 0.5, phase: 0, bias: 5 }, 0.5);
+    // sin(2*pi*0.5*0.5) = sin(pi/2) = 1 → 2*1 + 5 = 7
+    expect(out[0]).toBeCloseTo(7, 5);
+  });
+  it('defaults bias to 0', () => {
+    const block = Sine.create();
+    const [out] = block.compute(0.01, [], [], { amplitude: 1, frequency: 1, phase: 0, bias: 0 }, 0);
+    expect(out[0]).toBeCloseTo(0, 5);
+  });
 });
 
 describe('Square block', () => {

@@ -72,11 +72,17 @@ export function loadModel(data: ExportedModel): void {
 
   const nodes: Node[] = data.blocks.map((b) => {
     const io = TYPE_IO[b.type] ?? { inputs: 1, outputs: 1 };
+    // Variable-input blocks: override inputs from saved params
+    let inputs = io.inputs;
+    if ((b.type === 'Sum' || b.type === 'Product') && b.params?.inputCount) {
+      const max = b.type === 'Sum' ? 8 : 4;
+      inputs = Math.max(2, Math.min(max, b.params.inputCount as number));
+    }
     return {
       id: b.id,
       type: categoryForType(b.type),
       position: b.position,
-      data: { type: b.type, inputs: io.inputs, outputs: io.outputs, color: '' },
+      data: { type: b.type, inputs, outputs: io.outputs, color: '' },
     };
   });
 

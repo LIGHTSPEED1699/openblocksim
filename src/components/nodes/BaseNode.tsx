@@ -60,6 +60,13 @@ export function BaseNode({ id, data }: NodeProps) {
   const signs = isSum ? ((params?.signs as number[]) ?? [1, 1]) : null;
   const pidLabels = isPid ? ['e', 'PV'] : null;
 
+  // Variable-input blocks: override nodeData.inputs with param-driven count
+  const variableInputTypes = ['Sum', 'Product'];
+  let effectiveInputs = nodeData.inputs;
+  if (variableInputTypes.includes(nodeData.type) && params?.inputCount) {
+    effectiveInputs = Math.max(2, Math.min(nodeData.type === 'Sum' ? 8 : 4, params.inputCount as number));
+  }
+
   return (
     <div
       className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-slate-600 dark:border-slate-500'} bg-white dark:bg-slate-800 min-w-[60px] min-h-[40px] flex items-center justify-center relative`}
@@ -73,8 +80,8 @@ export function BaseNode({ id, data }: NodeProps) {
           icon
         )}
       </span>
-      {Array.from({ length: nodeData.inputs }).map((_, i) => {
-        const topPct = `${((i + 1) / (nodeData.inputs + 1)) * 100}%`;
+      {Array.from({ length: effectiveInputs }).map((_, i) => {
+        const topPct = `${((i + 1) / (effectiveInputs + 1)) * 100}%`;
         const signLabel = signs ? (signs[i] ?? 1) >= 0 ? '+' : '−' : null;
         const portLabel = pidLabels ? pidLabels[i] : null;
         const isPortLabel = portLabel !== null;

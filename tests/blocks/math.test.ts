@@ -23,6 +23,28 @@ describe('Sum block', () => {
     const [out] = block.compute(0.01, [10, 3], [], { signs: [1, -1] });
     expect(out[0]).toBe(7);
   });
+  it('supports 3 inputs with mixed signs', () => {
+    const block = Sum.create({ inputCount: 3, signs: [1, -1, 1] });
+    expect(block.inputs).toBe(3);
+    const [out] = block.compute(0.01, [10, 3, 5], [], { inputCount: 3, signs: [1, -1, 1] });
+    expect(out[0]).toBe(12);
+  });
+  it('supports 4 inputs', () => {
+    const block = Sum.create({ inputCount: 4, signs: [1, 1, 1, 1] });
+    expect(block.inputs).toBe(4);
+    const [out] = block.compute(0.01, [1, 2, 3, 4], [], { inputCount: 4, signs: [1, 1, 1, 1] });
+    expect(out[0]).toBe(10);
+  });
+  it('defaults to 2 inputs', () => {
+    const block = Sum.create();
+    expect(block.inputs).toBe(2);
+  });
+  it('clamps inputCount to 2-8 range', () => {
+    const block = Sum.create({ inputCount: 1 });
+    expect(block.inputs).toBe(2);
+    const block2 = Sum.create({ inputCount: 99 });
+    expect(block2.inputs).toBe(8);
+  });
 });
 
 describe('Gain block', () => {
@@ -53,6 +75,26 @@ describe('Product block', () => {
     const block = Product.create();
     const [out] = block.compute(0.01, [-3, 4], [], {});
     expect(out[0]).toBe(-12);
+  });
+  it('supports 3 inputs all multiply', () => {
+    const block = Product.create({ inputCount: 3, operators: '*,*,*' });
+    expect(block.inputs).toBe(3);
+    const [out] = block.compute(0.01, [2, 3, 4], [], { inputCount: 3, operators: '*,*,*' });
+    expect(out[0]).toBe(24);
+  });
+  it('supports divide operator', () => {
+    const block = Product.create({ inputCount: 2, operators: '*,/' });
+    const [out] = block.compute(0.01, [12, 3], [], { inputCount: 2, operators: '*,/' });
+    expect(out[0]).toBe(4);
+  });
+  it('supports mixed multiply and divide with 3 inputs', () => {
+    const block = Product.create({ inputCount: 3, operators: '*,*,/' });
+    const [out] = block.compute(0.01, [6, 3, 2], [], { inputCount: 3, operators: '*,*,/' });
+    expect(out[0]).toBe(9);
+  });
+  it('defaults to 2 inputs multiply', () => {
+    const block = Product.create();
+    expect(block.inputs).toBe(2);
   });
 });
 

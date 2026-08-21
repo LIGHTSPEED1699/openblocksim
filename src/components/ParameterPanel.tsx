@@ -15,6 +15,7 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
     amplitude: { type: 'number', default: 1, label: 'Amplitude' },
     frequency: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Frequency (Hz)' },
     phase: { type: 'number', default: 0, label: 'Phase (rad)' },
+    bias: { type: 'number', default: 0, label: 'Bias (DC offset)' },
   },
   [BlockType.Square]: {
     amplitude: { type: 'number', default: 1, label: 'Amplitude' },
@@ -23,9 +24,15 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
   },
   [BlockType.Scope]: {},
   [BlockType.ToWorkspace]: {},
-  [BlockType.Sum]: { signs: { type: 'array', default: [1, 1], label: 'Signs (1 or -1)' } },
+  [BlockType.Sum]: {
+    inputCount: { type: 'number', default: 2, min: 2, max: 8, step: 1, label: 'Input Count' },
+    signs: { type: 'array', default: [1, 1], label: 'Signs (1 or -1)' },
+  },
   [BlockType.Gain]: { gain: { type: 'number', default: 1, label: 'Gain' } },
-  [BlockType.Product]: {},
+  [BlockType.Product]: {
+    inputCount: { type: 'number', default: 2, min: 2, max: 4, step: 1, label: 'Input Count' },
+    operators: { type: 'text', default: '*,*', label: 'Operators (* or /, comma-separated)' },
+  },
   [BlockType.TransferFunction]: {
     num: { type: 'array', default: [1], label: 'Numerator coefficients' },
     den: { type: 'array', default: [1, 1], label: 'Denominator coefficients' },
@@ -36,7 +43,11 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
     C: { type: 'array', default: [1, 0], label: 'C vector' },
     D: { type: 'array', default: [0], label: 'D value' },
   },
-  [BlockType.Integrator]: { initialValue: { type: 'number', default: 0, label: 'Initial Value' } },
+  [BlockType.Integrator]: {
+    initialValue: { type: 'number', default: 0, label: 'Initial Value' },
+    upperLimit: { type: 'number', default: Infinity, label: 'Upper Limit (Infinity=none)' },
+    lowerLimit: { type: 'number', default: -Infinity, label: 'Lower Limit (-Infinity=none)' },
+  },
   [BlockType.Derivative]: { initialValue: { type: 'number', default: 0, label: 'Initial Previous Input' } },
   [BlockType.TransportDelay]: { delayTime: { type: 'number', default: 0.1, min: 0, step: 0.01, label: 'Delay Time (s)' } },
   [BlockType.Saturation]: {

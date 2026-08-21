@@ -17,6 +17,40 @@ describe('Integrator block', () => {
     expect(out[0]).toBe(5);
     expect(stateDot[0]).toBe(3);
   });
+  it('clamps output to upper saturation limit', () => {
+    const block = Integrator.create({ upperLimit: 10 });
+    const [out] = block.compute(0.01, [1], [15], { upperLimit: 10 });
+    expect(out[0]).toBe(10);
+  });
+  it('clamps output to lower saturation limit', () => {
+    const block = Integrator.create({ lowerLimit: -5 });
+    const [out] = block.compute(0.01, [1], [-10], { lowerLimit: -5 });
+    expect(out[0]).toBe(-5);
+  });
+  it('clamps state_dot when state is at upper limit and input is positive', () => {
+    const block = Integrator.create({ upperLimit: 10 });
+    // state = 10 (at limit), input = 3 (would push above)
+    // state_dot should be 0 (can't go higher)
+    const [, stateDot] = block.compute(0.01, [3], [10], { upperLimit: 10 });
+    expect(stateDot[0]).toBe(0);
+  });
+  it('clamps state_dot when state is at lower limit and input is negative', () => {
+    const block = Integrator.create({ lowerLimit: -5 });
+    // state = -5 (at limit), input = -2 (would push below)
+    const [, stateDot] = block.compute(0.01, [-2], [-5], { lowerLimit: -5 });
+    expect(stateDot[0]).toBe(0);
+  });
+  it('does not clamp when within limits', () => {
+    const block = Integrator.create({ upperLimit: 10, lowerLimit: -5 });
+    const [out, stateDot] = block.compute(0.01, [3], [2], { upperLimit: 10, lowerLimit: -5 });
+    expect(out[0]).toBe(2);
+    expect(stateDot[0]).toBe(3);
+  });
+  it('no limits by default (unclamped)', () => {
+    const block = Integrator.create();
+    const [out] = block.compute(0.01, [1], [1000], {});
+    expect(out[0]).toBe(1000);
+  });
 });
 
 describe('Derivative block', () => {
