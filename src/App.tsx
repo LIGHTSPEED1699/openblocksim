@@ -7,6 +7,7 @@ import { ParameterPanel } from './components/ParameterPanel';
 import { Toolbar } from './components/Toolbar';
 import { PlotArea } from './components/PlotArea';
 import { exportModel, importModel, loadModel } from './utils/exportImport';
+import { importSimulinkModel } from './utils/simulinkImport';
 import { EXAMPLES } from './examples';
 import type { WorkerMessage } from './engine/types';
 import type { BlockType } from './blocks/types';
@@ -227,11 +228,27 @@ export default function App() {
           Import
           <input
             type="file"
-            accept="application/json"
+            accept=".json,.slx,.mdl,application/json"
             className="hidden"
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
-              if (file) importModel(file).catch((err: unknown) => setSimError(String(err)));
+              if (!file) return;
+              try {
+                if (file.name.endsWith('.slx') || file.name.endsWith('.mdl')) {
+                  const text = await file.text();
+                  const format = file.name.endsWith('.slx') ? 'slx' : 'mdl';
+                  const result = importSimulinkModel(text, format);
+                  loadModel(result.model);
+                  const s = result.summary;
+                  if (s.unsupportedBlocks > 0) {
+                    setSimError(`Imported: ${s.supportedBlocks} supported, ${s.unsupportedBlocks} unsupported (${s.unsupportedTypes.join(', ')}). ${s.warnings.length} warnings.`);
+                  }
+                } else {
+                  await importModel(file);
+                }
+              } catch (err: unknown) {
+                setSimError(String(err));
+              }
               e.target.value = '';
             }}
           />
