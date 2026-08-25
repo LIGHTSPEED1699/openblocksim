@@ -1,6 +1,6 @@
 import { SerializedGraph } from './types';
 import { BlockRegistry } from '../blocks/registry';
-import { Block } from '../blocks/types';
+import { Block, BlockType } from '../blocks/types';
 
 interface ValidationResult {
   valid: boolean;
@@ -68,7 +68,11 @@ export function validateGraph(graph: SerializedGraph, registry: BlockRegistry): 
         // A cycle is an algebraic loop only if no block in it is dynamic
         // (integrator, transport delay, etc. break algebraic dependencies)
         const hasDynamic = cycle.some((id) => blocks.get(id)?.isDynamic);
-        if (!hasDynamic) {
+        // Cycles passing through Comment blocks (unsupported Simulink import
+        // placeholders) are not real algebraic loops — they're topology
+        // artifacts. Skip them so the user can still run the supported part.
+        const hasComment = cycle.some((id) => blocks.get(id)?.type === BlockType.Comment);
+        if (!hasDynamic && !hasComment) {
           errors.push(
             `Algebraic loop detected: ${cycle.join(' → ')} → ${neighbor}. Insert an Integrator or Transport Delay to break the loop.`,
           );
