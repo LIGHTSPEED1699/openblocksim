@@ -102,27 +102,40 @@ export function compileGraph(
     }
   }
 
+  // Merge block parameter defaults with graph params.
+  // Blocks dropped on canvas get params={} (factory create() ignores the
+  // argument). Without this merge, compute() receives undefined for every
+  // parameter, producing NaN in arithmetic. This is the single chokepoint
+  // where all simulation params flow through, so it covers drag-drop,
+  // saved models, and any other path that leaves params empty.
+  const mergedParams = new Map<string, typeof graph.blocks[0]['params']>();
+  for (const b of graph.blocks) {
+    const block = blocks.get(b.id)!;
+    const defaults: Record<string, number | number[] | string> = {};
+    for (const [key, spec] of Object.entries(block.parameters)) {
+      defaults[key] = spec.default;
+    }
+    mergedParams.set(b.id, { ...defaults, ...b.params });
+  }
+
   // Helper: compute state size for a block (TransportDelay and TransferFunction have dynamic size)
   const getStateSize = (id: string): number => {
     const block = blocks.get(id)!;
+    const blockParams = mergedParams.get(id)!;
     if (block.type === BlockType.TransportDelay) {
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
       const delayTime = blockParams.delayTime as number;
       return Math.max(1, Math.ceil(delayTime / dt));
     }
     if (block.type === BlockType.TransferFunction) {
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
       const den = (blockParams.den as number[]) ?? [1, 1];
       return Math.max(1, den.length - 1);
     }
     if (block.type === BlockType.StateSpace) {
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
       const A = (blockParams.A as number[]) ?? [0, 1, -1, -2];
       const n = Math.round(Math.sqrt(A.length));
       return Math.max(1, n);
     }
     if (block.type === BlockType.DiscreteTransferFcn) {
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
       const den = (blockParams.den as number[]) ?? [1, -0.5];
       const num = (blockParams.num as number[]) ?? [1];
       return Math.max(den.length - 1, num.length - 1, 1);
@@ -214,7 +227,7 @@ export function compileGraph(
 
     for (const id of order) {
       const block = blocks.get(id)!;
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const blockParams = mergedParams.get(id)!;
       const blockState = getBlockState(id, state);
       const inputValues = gatherInputs(id, outputs);
 
@@ -239,7 +252,7 @@ export function compileGraph(
     const outputs = new Map<string, number[]>();
     for (const id of order) {
       const block = blocks.get(id)!;
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const blockParams = mergedParams.get(id)!;
       const blockState = getBlockState(id, state);
       const inputValues = gatherInputs(id, outputs);
       const [output] = block.compute(dt, inputValues, blockState, blockParams, t);
@@ -256,7 +269,7 @@ export function compileGraph(
     for (const id of order) {
       if (!absoluteBlockIds.has(id)) continue;
       const block = blocks.get(id)!;
-      const blockParams = graph.blocks.find((b) => b.id === id)!.params;
+      const blockParams = mergedParams.get(id)!;
       const offset = stateOffsets.get(id)!;
       const sz = getStateSize(id);
       const blockState = state.slice(offset, offset + sz);
