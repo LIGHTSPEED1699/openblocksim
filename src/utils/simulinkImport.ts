@@ -354,28 +354,75 @@ export function parseSLXXml(xml: string): ParsedModel {
     blocks.push({ simType, name, sid, position, params });
   });
 
-  // Parse lines
+  // Parse lines — including Branch elements (Simulink fan-out)
+  // A Line has a Src and optionally a direct Dst. If it has Branch elements,
+  // each Branch is a separate destination from the same source. Branches can
+  // nest (Branch inside Branch) for multi-level fan-out.
+  // Port formats: "#out:N" (signal out), "#in:N" (signal in),
+  // "#lconn:N"/"#rconn:N" (Simscape physical connection ports).
   const lineElements = system.querySelectorAll(':scope > Line');
   lineElements.forEach((el) => {
     let srcSid: string | undefined;
-    let dstSid: string | undefined;
     let srcPort = 0;
-    let dstPort = 0;
 
     el.querySelectorAll(':scope > P').forEach((p) => {
       const pName = p.getAttribute('Name') ?? '';
       const pText = p.textContent ?? '';
       if (pName === 'Src') {
-        // Format: "SID#out:port"
-        const m = pText.match(/^(\d+)#out:(\d+)/);
+        const m = pText.match(/^(\d+)#(?:out|lconn|rconn):(\d+)/);
         if (m) { srcSid = m[1]; srcPort = parseInt(m[2], 10) - 1; }
-      } else if (pName === 'Dst') {
-        const m = pText.match(/^(\d+)#in:(\d+)/);
-        if (m) { dstSid = m[1]; dstPort = parseInt(m[2], 10) - 1; }
       }
     });
 
-    lines.push({ srcSid, srcPort, dstSid, dstPort });
+    // Direct Dst on the Line itself
+    let directDstSid: string | undefined;
+    let directDstPort = 0;
+    el.querySelectorAll(':scope > P').forEach((p) => {
+      const pName = p.getAttribute('Name') ?? '';
+      const pText = p.textContent ?? '';
+      if (pName === 'Dst') {
+        const m = pText.match(/^(\d+)#(?:in|lconn|rconn):(\d+)/);
+        if (m) { directDstSid = m[1]; directDstPort = parseInt(m[2], 10) - 1; }
+      }
+    });
+
+    if (directDstSid) {
+      lines.push({ srcSid, srcPort, dstSid: directDstSid, dstPort: directDstPort });
+    }
+
+    // Recursively walk Branch elements to collect all fan-out destinations
+    const collectBranchDsts = (branchEl: Element, inheritedSrcSid?: string, inheritedSrcPort?: number) => {
+      // Branch can have its own Src (e.g. for Simscape physical connections)
+      let branchSrcSid = inheritedSrcSid;
+      let branchSrcPort = inheritedSrcPort ?? 0;
+      branchEl.querySelectorAll(':scope > P').forEach((p) => {
+        const pName = p.getAttribute('Name') ?? '';
+        const pText = p.textContent ?? '';
+        if (pName === 'Src') {
+          const m = pText.match(/^(\d+)#(?:out|lconn|rconn):(\d+)/);
+          if (m) { branchSrcSid = m[1]; branchSrcPort = parseInt(m[2], 10) - 1; }
+        }
+        if (pName === 'Dst') {
+          const m = pText.match(/^(\d+)#(?:in|lconn|rconn):(\d+)/);
+          if (m) {
+            lines.push({
+              srcSid: branchSrcSid,
+              srcPort: branchSrcPort,
+              dstSid: m[1],
+              dstPort: parseInt(m[2], 10) - 1,
+            });
+          }
+        }
+      });
+      // Recurse into nested branches
+      branchEl.querySelectorAll(':scope > Branch').forEach((sub) => {
+        collectBranchDsts(sub, branchSrcSid, branchSrcPort);
+      });
+    };
+
+    el.querySelectorAll(':scope > Branch').forEach((branch) => {
+      collectBranchDsts(branch, srcSid, srcPort);
+    });
   });
 
   return { blocks, lines };
@@ -464,6 +511,7 @@ export function importSimulinkModel(input: string | ArrayBuffer, format: 'slx' |
         sourcePort: line.srcPort,
         target: targetId,
         targetPort: line.dstPort,
+        waypoints: [],
       });
     } else {
       warnings.push(`Connection from ${line.srcBlock ?? line.srcSid} to ${line.dstBlock ?? line.dstSid} could not be resolved.`);
