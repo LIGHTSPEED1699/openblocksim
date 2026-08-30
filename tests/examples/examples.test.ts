@@ -11,6 +11,8 @@ import { ToWorkspace } from '../../src/blocks/sinks/ToWorkspace';
 import { Sum } from '../../src/blocks/math/Sum';
 import { Gain } from '../../src/blocks/math/Gain';
 import { Product } from '../../src/blocks/math/Product';
+import { Divide } from '../../src/blocks/math/Divide';
+import { MathFunction } from '../../src/blocks/math/MathFunction';
 import { Integrator } from '../../src/blocks/linear/Integrator';
 import { Derivative } from '../../src/blocks/linear/Derivative';
 import { TransferFunction } from '../../src/blocks/linear/TransferFunction';
@@ -39,6 +41,8 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.Sum, Sum);
   r.register(BlockType.Gain, Gain);
   r.register(BlockType.Product, Product);
+  r.register(BlockType.Divide, Divide);
+  r.register(BlockType.MathFunction, MathFunction);
   r.register(BlockType.Integrator, Integrator);
   r.register(BlockType.Derivative, Derivative);
   r.register(BlockType.TransferFunction, TransferFunction);
