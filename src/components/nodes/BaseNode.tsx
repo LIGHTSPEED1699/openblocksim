@@ -36,7 +36,7 @@ const ICONS: Record<string, string> = {
   Scope: '⊘',
   ToWorkspace: 'W',
   // Annotation
-  Comment: '✎',
+  Comment: '📝',
 };
 
 // Build a readable G(s) string from numerator/denominator coefficients.

@@ -141,6 +141,7 @@ const TYPE_IO: Record<string, { inputs: number; outputs: number }> = {
   Terminator: { inputs: 1, outputs: 0 },
   Display: { inputs: 1, outputs: 0 },
   StopSimulation: { inputs: 1, outputs: 0 },
+  Comment: { inputs: 0, outputs: 0 },
 };
 
 const CATEGORY_FOR_TYPE: Record<string, BlockCategory> = {
@@ -165,6 +166,7 @@ const CATEGORY_FOR_TYPE: Record<string, BlockCategory> = {
   RandomNumber: BlockCategory.Source,
   Terminator: BlockCategory.Sink, Display: BlockCategory.Sink,
   StopSimulation: BlockCategory.Sink,
+  Comment: BlockCategory.Annotation,
 };
 
 function categoryForType(type: BlockType): string {

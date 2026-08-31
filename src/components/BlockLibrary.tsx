@@ -46,7 +46,7 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.Terminator]: 'T',
   [BlockType.Display]: 'D',
   [BlockType.StopSimulation]: '⏹',
-  [BlockType.Comment]: '✎',
+  [BlockType.Comment]: '📝',
 };
 
 const BLOCK_GROUPS: { label: string; accent: string; blocks: BlockType[] }[] = [
