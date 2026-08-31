@@ -361,100 +361,69 @@ const dcMotorPID: ExportedModel = {
 };
 
 // ---- Example: Thermistor RC Charge-Time Temperature Measurement ----------
-//   PLC output 2 discharges C to ~0V. Output 1 switches +24V through R1 +
-//   NTC thermistor into C. The IN pin reads V_C; the time t_L to reach the
-//   logic-1 threshold V_L1 is the temperature signal.
+//   2-OUT/1-IN microcontroller trick. OUT1 switches +24V through R1 + NTC
+//   thermistor into C (charge). OUT2 shorts C to GND (discharge). The IN pin
+//   reads V_C and trips at the logic-1 threshold V_L1 = 12 V.
 //
-//   Physics (charge phase):  τ = (R1 + R_T(T))·C,  V_C(t) = V_S·(1 − e^(−t/τ))
-//   Threshold time:          t_L = τ·ln(V_S/(V_S − V_L1))
-//   Thermistor (B-equ):      R_T(T) = R₀·exp(B·(1/T − 1/T₀)), T in Kelvin
+//   The block model uses the transfer function G(s) = 1/(τs+1) with τ = 2 s
+//   (frozen at 25 °C) as the RC plant. A Relay (IN pin) detects when V_C
+//   reaches V_L1. A Switch routes the TF input between +24 V (charge) and 0 V
+//   (discharge) based on the relay state — when the cap charges to 12 V the
+//   relay fires, the switch flips to 0 V, and the cap discharges back down.
+//   When V_C drops below the relay's switchOff, the relay resets and the
+//   switch flips back to +24 V, recharging. This produces a charge/discharge
+//   oscillation with hysteresis, exactly as the real measurement loop does.
 //
-//   t_L is LINEAR in R_T but R_T is EXPONENTIAL in 1/T ⇒ t_L vs T is
-//   nonlinear, no closed-form inverse ⇒ the 0..9 lookup / callout table.
-//
-//   Block layout: top row computes τ from the temperature constant T (change
-//   it to sweep the measurement); bottom row integrates the charge ODE and a
-//   Relay trips at V_L1 (its output is the logic-1 timing signal).
+//   τ = (R1 + R_T(25 °C))·C = (10 kΩ + 10 kΩ)·100 µF = 2.0 s
+//   t_L = τ·ln(V_S/(V_S − V_L1)) = 2·ln(24/12) = 2·ln(2) ≈ 1.39 s
 const thermistorRcTimer: ExportedModel = {
   blocks: [
-    // ── Temperature → thermistor resistance → τ ──
-    { id: 't_c', type: BlockType.Constant, params: { value: 25 }, position: { x: 40, y: 100 } },
-    { id: 'two73', type: BlockType.Constant, params: { value: 273.15 }, position: { x: 40, y: 200 } },
-    { id: 'tk', type: BlockType.Sum, params: { inputCount: 2, signs: [1, 1] }, position: { x: 200, y: 150 } },
-    { id: 'oneA', type: BlockType.Constant, params: { value: 1 }, position: { x: 200, y: 260 } },
-    { id: 'invT', type: BlockType.Divide, params: {}, position: { x: 340, y: 130 } },
-    { id: 'invT0', type: BlockType.Constant, params: { value: 0.003354 }, position: { x: 340, y: 260 } },
-    { id: 'bdelta', type: BlockType.Sum, params: { inputCount: 2, signs: [1, -1] }, position: { x: 480, y: 150 } },
-    { id: 'bgain', type: BlockType.Gain, params: { gain: 3435 }, position: { x: 620, y: 150 } },
-    { id: 'expt', type: BlockType.MathFunction, params: { mode: 'exp' }, position: { x: 760, y: 150 } },
-    { id: 'r0gain', type: BlockType.Gain, params: { gain: 10000 }, position: { x: 900, y: 150 } },
-    { id: 'r1', type: BlockType.Constant, params: { value: 10000 }, position: { x: 900, y: 260 } },
-    { id: 'rtot', type: BlockType.Sum, params: { inputCount: 2, signs: [1, 1] }, position: { x: 1040, y: 200 } },
-    { id: 'cap', type: BlockType.Constant, params: { value: 0.0001 }, position: { x: 1040, y: 310 } },
-    { id: 'tau', type: BlockType.Product, params: { inputCount: 2, operators: '*,' }, position: { x: 1180, y: 260 } },
-    { id: 'rate', type: BlockType.Divide, params: {}, position: { x: 1320, y: 260 } },
-    { id: 'oneB', type: BlockType.Constant, params: { value: 1 }, position: { x: 1200, y: 370 } },
+    // ── Signal sources ──
+    { id: 'vs', type: BlockType.Constant, params: { value: 24 }, position: { x: 40, y: 120 } },
+    { id: 'gnd', type: BlockType.Constant, params: { value: 0 }, position: { x: 40, y: 280 } },
 
-    // ── Charge ODE: dV_C/dt = (V_S − V_C)/τ ──
-    { id: 'vs', type: BlockType.Constant, params: { value: 24 }, position: { x: 40, y: 460 } },
-    { id: 'verr', type: BlockType.Sum, params: { inputCount: 2, signs: [1, -1] }, position: { x: 200, y: 460 } },
-    { id: 'dvc', type: BlockType.Product, params: { inputCount: 2, operators: '*,' }, position: { x: 360, y: 460 } },
-    { id: 'integr', type: BlockType.Integrator, params: { initialValue: 0, upperLimit: 24, lowerLimit: 0 }, position: { x: 520, y: 460 } },
-    { id: 'scope_v', type: BlockType.Scope, params: {}, position: { x: 680, y: 460 } },
-    { id: 'relay', type: BlockType.Relay, params: { onValue: 1, offValue: 0, switchOn: 12, switchOff: 12 }, position: { x: 680, y: 580 } },
-    { id: 'scope_l', type: BlockType.Scope, params: {}, position: { x: 840, y: 580 } },
+    // ── Switch: routes V_S (charge) or 0 (discharge) into the TF plant ──
+    //    input[0] = 0 V (passed when control >= threshold = relay ON = discharge)
+    //    input[1] = relay output (control)
+    //    input[2] = V_S (passed when control < threshold = relay OFF = charge)
+    { id: 'sw', type: BlockType.Switch, params: { threshold: 0.5, condition: 'u2>=threshold' }, position: { x: 220, y: 200 } },
 
-    // ── Transfer-function view: same RC as G(s) = 1/(τs+1), τ frozen at
-    //    25 °C (τ = (R1+R_T(25 °C))·C = 2.0 s). Overlaps the ODE row above
-    //    when t_c = 25. Sweep temperature on the ODE row instead.
-    { id: 'vs2', type: BlockType.Step, params: { stepTime: 0, stepValue: 24 }, position: { x: 40, y: 700 } },
-    { id: 'tf_vc', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 220, y: 700 } },
-    { id: 'scope_tf', type: BlockType.Scope, params: {}, position: { x: 420, y: 700 } },
+    // ── RC plant: G(s) = 1/(τs + 1), τ = 2 s ──
+    { id: 'tf', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 400, y: 200 } },
 
-    // ── Annotations: block ↔ circuit element mapping ──
-    { id: 'c_temp', type: BlockType.Comment, params: { text: 't_c = ambient temperature (°C)' }, position: { x: 40, y: 40 } },
-    { id: 'c_ntc', type: BlockType.Comment, params: { text: 'NTC thermistor: R_T = R₀·exp(B(1/T−1/T₀))' }, position: { x: 620, y: 40 } },
-    { id: 'c_tau', type: BlockType.Comment, params: { text: 'τ = (R1 + R_T)·C — RC time constant' }, position: { x: 1180, y: 150 } },
-    { id: 'c_out1', type: BlockType.Comment, params: { text: 'OUT1: +24 V supply switch (charges C)' }, position: { x: 40, y: 350 } },
-    { id: 'c_cap', type: BlockType.Comment, params: { text: 'Capacitor = 1/s: dV_C/dt = (V_S−V_C)/τ' }, position: { x: 200, y: 350 } },
-    { id: 'c_in', type: BlockType.Comment, params: { text: 'IN pin: logic-1 threshold V_L1 = 12 V' }, position: { x: 400, y: 580 } },
-    { id: 'c_tf', type: BlockType.Comment, params: { text: 'G(s) = V_C/V_S = 1/(τs+1), τ = 2 s @ 25 °C' }, position: { x: 40, y: 620 } },
+    // ── IN pin: Relay trips at V_L1 = 12 V (charge complete) ──
+    //    switchOn = 12 (V_C rises to 12 → relay fires → discharge begins)
+    //    switchOff = 1 (V_C falls to ~0 → relay resets → charge begins)
+    //    Hysteresis prevents chatter at the threshold.
+    { id: 'relay', type: BlockType.Relay, params: { onValue: 1, offValue: 0, switchOn: 12, switchOff: 1 }, position: { x: 580, y: 340 } },
+
+    // ── Scopes ──
+    { id: 'scope_v', type: BlockType.Scope, params: {}, position: { x: 580, y: 200 } },
+    { id: 'scope_r', type: BlockType.Scope, params: {}, position: { x: 760, y: 340 } },
+
+    // ── Annotations ──
+    { id: 'c_vs', type: BlockType.Comment, params: { text: 'OUT1: +24 V supply\n(charge phase)' }, position: { x: 40, y: 60 } },
+    { id: 'c_gnd', type: BlockType.Comment, params: { text: 'OUT2: 0 V\ndischarge path' }, position: { x: 40, y: 220 } },
+    { id: 'c_sw', type: BlockType.Comment, params: { text: 'Switch: OUT1/OUT2 routing\nRelay=0 → charge (V_S)\nRelay=1 → discharge (0 V)' }, position: { x: 220, y: 60 } },
+    { id: 'c_tf', type: BlockType.Comment, params: { text: 'G(s) = 1/(τs+1)\nτ = 2 s @ 25 °C\n(R1+R_T)·C = 20 kΩ · 100 µF' }, position: { x: 400, y: 60 } },
+    { id: 'c_relay', type: BlockType.Comment, params: { text: 'IN pin: Relay @ V_L1 = 12 V\nswitchOff = 1 V (hysteresis)\nOutput: 1 = charged, 0 = discharged' }, position: { x: 580, y: 440 } },
   ],
   edges: [
-    // Temperature → T_K (Kelvin)
-    { id: 't1', source: 't_c', sourcePort: 0, target: 'tk', targetPort: 0, waypoints: [] },
-    { id: 't2', source: 'two73', sourcePort: 0, target: 'tk', targetPort: 1, waypoints: [] },
-    // T_K → 1/T − 1/T0
-    { id: 't3', source: 'oneA', sourcePort: 0, target: 'invT', targetPort: 0, waypoints: [] },
-    { id: 't4', source: 'tk', sourcePort: 0, target: 'invT', targetPort: 1, waypoints: [] },
-    { id: 't5', source: 'invT', sourcePort: 0, target: 'bdelta', targetPort: 0, waypoints: [] },
-    { id: 't6', source: 'invT0', sourcePort: 0, target: 'bdelta', targetPort: 1, waypoints: [] },
-    // (1/T − 1/T0) → ×B → exp → ×R₀ → R_T
-    { id: 't7', source: 'bdelta', sourcePort: 0, target: 'bgain', targetPort: 0, waypoints: [] },
-    { id: 't8', source: 'bgain', sourcePort: 0, target: 'expt', targetPort: 0, waypoints: [] },
-    { id: 't9', source: 'expt', sourcePort: 0, target: 'r0gain', targetPort: 0, waypoints: [] },
-    // R1 + R_T → τ = R·C → 1/τ
-    { id: 't10', source: 'r1', sourcePort: 0, target: 'rtot', targetPort: 0, waypoints: [] },
-    { id: 't11', source: 'r0gain', sourcePort: 0, target: 'rtot', targetPort: 1, waypoints: [] },
-    { id: 't12', source: 'rtot', sourcePort: 0, target: 'tau', targetPort: 0, waypoints: [] },
-    { id: 't13', source: 'cap', sourcePort: 0, target: 'tau', targetPort: 1, waypoints: [] },
-    { id: 't14', source: 'oneB', sourcePort: 0, target: 'rate', targetPort: 0, waypoints: [] },
-    { id: 't15', source: 'tau', sourcePort: 0, target: 'rate', targetPort: 1, waypoints: [] },
-    // Charge ODE: V_S − V_C = err; err × (1/τ) = dV_C/dt
-    { id: 'c1', source: 'vs', sourcePort: 0, target: 'verr', targetPort: 0, waypoints: [] },
-    { id: 'c2', source: 'integr', sourcePort: 0, target: 'verr', targetPort: 1, waypoints: [] },
-    { id: 'c3', source: 'verr', sourcePort: 0, target: 'dvc', targetPort: 0, waypoints: [] },
-    { id: 'c4', source: 'rate', sourcePort: 0, target: 'dvc', targetPort: 1, waypoints: [] },
-    { id: 'c5', source: 'dvc', sourcePort: 0, target: 'integr', targetPort: 0, waypoints: [] },
-    // Observe V_C and the logic-1 threshold trip
-    { id: 'c6', source: 'integr', sourcePort: 0, target: 'scope_v', targetPort: 0, waypoints: [] },
-    { id: 'c7', source: 'integr', sourcePort: 0, target: 'relay', targetPort: 0, waypoints: [] },
-    { id: 'c8', source: 'relay', sourcePort: 0, target: 'scope_l', targetPort: 0, waypoints: [] },
-    // Transfer-function view: Step V_S → G(s)=1/(τs+1) → Scope
-    { id: 'tf1', source: 'vs2', sourcePort: 0, target: 'tf_vc', targetPort: 0, waypoints: [] },
-    { id: 'tf2', source: 'tf_vc', sourcePort: 0, target: 'scope_tf', targetPort: 0, waypoints: [] },
+    // GND and V_S into Switch (input[0]=0 discharge, input[2]=V_S charge)
+    { id: 'e1', source: 'gnd', sourcePort: 0, target: 'sw', targetPort: 0, waypoints: [] },
+    { id: 'e2', source: 'vs', sourcePort: 0, target: 'sw', targetPort: 2, waypoints: [] },
+    // Switch output → TF plant → V_C
+    { id: 'e3', source: 'sw', sourcePort: 0, target: 'tf', targetPort: 0, waypoints: [] },
+    // V_C → Relay (IN pin threshold detector)
+    { id: 'e4', source: 'tf', sourcePort: 0, target: 'relay', targetPort: 0, waypoints: [] },
+    // Relay output → Switch control (input[1])
+    { id: 'e5', source: 'relay', sourcePort: 0, target: 'sw', targetPort: 1, waypoints: [] },
+    // V_C → Scope
+    { id: 'e6', source: 'tf', sourcePort: 0, target: 'scope_v', targetPort: 0, waypoints: [] },
+    // Relay → Scope
+    { id: 'e7', source: 'relay', sourcePort: 0, target: 'scope_r', targetPort: 0, waypoints: [] },
   ],
-  simConfig: { dt: 0.01, duration: 5 },
+  simConfig: { dt: 0.01, duration: 10 },
 };
 
 export const EXAMPLES: Example[] = [
@@ -466,5 +435,5 @@ export const EXAMPLES: Example[] = [
   { id: 'drum-level-3element', name: 'Three-Element Drum Level Control', description: 'Cascade PID with steam flow feedforward for a boiler drum with inverse-response dynamics.', model: drumLevelThreeElement },
   { id: 'mrac-lyapunov', name: 'Model Reference Adaptive Control', description: 'Lyapunov-based MRAC — controller adapts online to track a reference model with unknown plant parameters.', model: mracLyapunov },
   { id: 'dc-motor-pid', name: 'DC Motor PID Speed Control (Imported from Simulink)', description: 'Closed-loop PID speed control of a DC motor. Imported from DCMotorPID.mdl — 100% Simulink block support (Step, Sum, PID, Saturation, Gain, TransferFunction, Scope).', model: dcMotorPID },
-  { id: 'thermistor-rc-timer', name: 'Thermistor RC Charge-Time Temperature (2-OUT/1-IN)', description: 'Capacitor charges through R1 + NTC thermistor after OUT2 discharges it; the time to the logic-1 threshold encodes temperature. Change the temperature constant (t_c) to sweep the measurement.', model: thermistorRcTimer },
+  { id: 'thermistor-rc-timer', name: 'Thermistor RC Charge/Discharge (2-OUT/1-IN)', description: 'Capacitor charges through R1 + NTC thermistor via OUT1, then discharges via OUT2 when V_C reaches the logic-1 threshold. Transfer function G(s)=1/(τs+1) with Relay+Switch feedback loop for automatic charge/discharge cycling. τ = 2 s at 25 °C.', model: thermistorRcTimer },
 ];

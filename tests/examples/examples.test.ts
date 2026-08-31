@@ -22,6 +22,7 @@ import { Saturation } from '../../src/blocks/nonlinear/Saturation';
 import { Deadzone } from '../../src/blocks/nonlinear/Deadzone';
 import { PID } from '../../src/blocks/control/PID';
 import { Relay } from '../../src/blocks/control/Relay';
+import { Switch } from '../../src/blocks/routing/Switch';
 import { RoundingFunction } from '../../src/blocks/math/RoundingFunction';
 import { Comment } from '../../src/blocks/annotation/Comment';
 import { compileGraph } from '../../src/engine/compiler';
@@ -52,6 +53,7 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.Deadzone, Deadzone);
   r.register(BlockType.PID, PID);
   r.register(BlockType.Relay, Relay);
+  r.register(BlockType.Switch, Switch);
   r.register(BlockType.RoundingFunction, RoundingFunction);
   r.register(BlockType.Comment, Comment);
   return r;

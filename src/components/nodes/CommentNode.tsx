@@ -19,7 +19,7 @@ export function CommentNode({ id, data }: NodeProps) {
     <div
       className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-dashed border-slate-400 dark:border-slate-500'} bg-yellow-50 dark:bg-slate-800/60 min-w-[80px] max-w-[240px]`}
     >
-      <div className="text-xs text-[var(--text-secondary)] select-none truncate">
+      <div className="text-xs text-[var(--text-secondary)] select-none whitespace-pre-wrap break-words">
         {text}
       </div>
     </div>
