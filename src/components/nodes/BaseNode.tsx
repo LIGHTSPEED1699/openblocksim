@@ -99,6 +99,14 @@ export function BaseNode({ id, data }: NodeProps) {
     }
   }
 
+  // Constant: show actual value instead of "1" icon
+  if (nodeData.type === 'Constant' && params) {
+    const val = params.value as number | undefined;
+    if (val !== undefined) {
+      icon = String(val);
+    }
+  }
+
   const isImageBlock = nodeData.type === 'Scope' || nodeData.type === 'Step';
   const theme = useDiagramStore((s) => s.theme);
   const imgIcon = theme === 'dark'
