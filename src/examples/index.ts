@@ -403,6 +403,22 @@ const thermistorRcTimer: ExportedModel = {
     { id: 'scope_v', type: BlockType.Scope, params: {}, position: { x: 680, y: 460 } },
     { id: 'relay', type: BlockType.Relay, params: { onValue: 1, offValue: 0, switchOn: 12, switchOff: 12 }, position: { x: 680, y: 580 } },
     { id: 'scope_l', type: BlockType.Scope, params: {}, position: { x: 840, y: 580 } },
+
+    // ── Transfer-function view: same RC as G(s) = 1/(τs+1), τ frozen at
+    //    25 °C (τ = (R1+R_T(25 °C))·C = 2.0 s). Overlaps the ODE row above
+    //    when t_c = 25. Sweep temperature on the ODE row instead.
+    { id: 'vs2', type: BlockType.Step, params: { stepTime: 0, stepValue: 24 }, position: { x: 40, y: 700 } },
+    { id: 'tf_vc', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 220, y: 700 } },
+    { id: 'scope_tf', type: BlockType.Scope, params: {}, position: { x: 420, y: 700 } },
+
+    // ── Annotations: block ↔ circuit element mapping ──
+    { id: 'c_temp', type: BlockType.Comment, params: { text: 't_c = ambient temperature (°C)' }, position: { x: 40, y: 40 } },
+    { id: 'c_ntc', type: BlockType.Comment, params: { text: 'NTC thermistor: R_T = R₀·exp(B(1/T−1/T₀))' }, position: { x: 620, y: 40 } },
+    { id: 'c_tau', type: BlockType.Comment, params: { text: 'τ = (R1 + R_T)·C — RC time constant' }, position: { x: 1180, y: 150 } },
+    { id: 'c_out1', type: BlockType.Comment, params: { text: 'OUT1: +24 V supply switch (charges C)' }, position: { x: 40, y: 350 } },
+    { id: 'c_cap', type: BlockType.Comment, params: { text: 'Capacitor = 1/s: dV_C/dt = (V_S−V_C)/τ' }, position: { x: 200, y: 350 } },
+    { id: 'c_in', type: BlockType.Comment, params: { text: 'IN pin: logic-1 threshold V_L1 = 12 V' }, position: { x: 400, y: 580 } },
+    { id: 'c_tf', type: BlockType.Comment, params: { text: 'G(s) = V_C/V_S = 1/(τs+1), τ = 2 s @ 25 °C' }, position: { x: 40, y: 620 } },
   ],
   edges: [
     // Temperature → T_K (Kelvin)
@@ -434,6 +450,9 @@ const thermistorRcTimer: ExportedModel = {
     { id: 'c6', source: 'integr', sourcePort: 0, target: 'scope_v', targetPort: 0, waypoints: [] },
     { id: 'c7', source: 'integr', sourcePort: 0, target: 'relay', targetPort: 0, waypoints: [] },
     { id: 'c8', source: 'relay', sourcePort: 0, target: 'scope_l', targetPort: 0, waypoints: [] },
+    // Transfer-function view: Step V_S → G(s)=1/(τs+1) → Scope
+    { id: 'tf1', source: 'vs2', sourcePort: 0, target: 'tf_vc', targetPort: 0, waypoints: [] },
+    { id: 'tf2', source: 'tf_vc', sourcePort: 0, target: 'scope_tf', targetPort: 0, waypoints: [] },
   ],
   simConfig: { dt: 0.01, duration: 5 },
 };
