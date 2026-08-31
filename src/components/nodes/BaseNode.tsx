@@ -90,6 +90,15 @@ export function BaseNode({ id, data }: NodeProps) {
     }
   }
 
+  // Comment: show actual text content instead of icon (like TF shows its formula)
+  const isComment = nodeData.type === 'Comment';
+  if (isComment && params) {
+    const text = params.text as string | undefined;
+    if (text) {
+      icon = text;
+    }
+  }
+
   const isImageBlock = nodeData.type === 'Scope' || nodeData.type === 'Step';
   const theme = useDiagramStore((s) => s.theme);
   const imgIcon = theme === 'dark'
@@ -111,13 +120,19 @@ export function BaseNode({ id, data }: NodeProps) {
     effectiveInputs = Math.max(2, Math.min(nodeData.type === 'Sum' ? 8 : 4, params.inputCount as number));
   }
 
+  // Comment: no connection handles (annotation-only, not a signal node)
+  if (isComment) {
+    effectiveInputs = 0;
+  }
+  const effectiveOutputs = isComment ? 0 : nodeData.outputs;
+
   return (
     <div
       className={`px-3 py-2 rounded border ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-slate-600 dark:border-slate-500'} bg-white dark:bg-slate-800 min-w-[60px] min-h-[40px] flex items-center justify-center relative`}
     >
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
-      <span className={`select-none ${nodeData.type === 'TransferFunction' && params?.num ? 'text-[10px] font-mono' : 'text-sm font-medium'} text-slate-800 dark:text-slate-100`}>
+      <span className={`select-none ${isComment ? 'text-[10px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words max-w-[240px] text-left leading-relaxed' : nodeData.type === 'TransferFunction' && params?.num ? 'text-[10px] font-mono' : 'text-sm font-medium'} text-slate-800 dark:text-slate-100`}>
         {isImageBlock ? (
           <img src={imgIcon} alt={nodeData.type} className="w-5 h-5 inline-block" />
         ) : (
@@ -149,7 +164,7 @@ export function BaseNode({ id, data }: NodeProps) {
           </div>
         );
       })}
-      {Array.from({ length: nodeData.outputs }).map((_, i) => (
+      {Array.from({ length: effectiveOutputs }).map((_, i) => (
         <Handle
           key={`out-${i}`}
           type="source"
