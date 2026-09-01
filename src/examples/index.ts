@@ -378,52 +378,29 @@ const dcMotorPID: ExportedModel = {
 //   t_L = τ·ln(V_S/(V_S − V_L1)) = 2·ln(24/12) = 2·ln(2) ≈ 1.39 s
 const thermistorRcTimer: ExportedModel = {
   blocks: [
-    // ── Signal sources ──
-    { id: 'vs', type: BlockType.Constant, params: { value: 24 }, position: { x: 40, y: 120 } },
-    { id: 'gnd', type: BlockType.Constant, params: { value: 0 }, position: { x: 40, y: 280 } },
-
-    // ── Switch: routes V_S (charge) or 0 (discharge) into the TF plant ──
-    //    input[0] = 0 V (passed when control >= threshold = relay ON = discharge)
-    //    input[1] = relay output (control)
-    //    input[2] = V_S (passed when control < threshold = relay OFF = charge)
-    { id: 'sw', type: BlockType.Switch, params: { threshold: 0.5, condition: 'u2>=threshold' }, position: { x: 220, y: 200 } },
-
-    // ── RC plant: G(s) = 1/(τs + 1), τ = 2 s ──
-    { id: 'tf', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 400, y: 200 } },
-
-    // ── IN pin: Relay trips at V_L1 = 12 V (charge complete) ──
-    //    switchOn = 12 (V_C rises to 12 → relay fires → discharge begins)
-    //    switchOff = 1 (V_C falls to ~0 → relay resets → charge begins)
-    //    Hysteresis prevents chatter at the threshold.
+    { id: 'vs', type: BlockType.Constant, params: { value: 24 }, position: { x: -1.68, y: 326.42 } },
+    { id: 'gnd', type: BlockType.Constant, params: { value: 0 }, position: { x: 5.60, y: 190.64 } },
+    { id: 'sw', type: BlockType.Switch, params: { threshold: 0.5, condition: 'u2>=threshold' }, position: { x: 239.36, y: 200.80 } },
+    { id: 'tf', type: BlockType.TransferFunction, params: { num: [1], den: [2, 1] }, position: { x: 400, y: 200.97 } },
     { id: 'relay', type: BlockType.Relay, params: { onValue: 1, offValue: 0, switchOn: 12, switchOff: 1 }, position: { x: 580, y: 340 } },
-
-    // ── Scopes ──
     { id: 'scope_v', type: BlockType.Scope, params: {}, position: { x: 580, y: 200 } },
     { id: 'scope_r', type: BlockType.Scope, params: {}, position: { x: 760, y: 340 } },
-
-    // ── Annotations ──
-    { id: 'c_vs', type: BlockType.Comment, params: { text: 'OUT1: +24 V supply\n(charge phase)' }, position: { x: 40, y: 60 } },
-    { id: 'c_gnd', type: BlockType.Comment, params: { text: 'OUT2: 0 V\ndischarge path' }, position: { x: 40, y: 220 } },
-    { id: 'c_sw', type: BlockType.Comment, params: { text: 'Switch: OUT1/OUT2 routing\nRelay=0 → charge (V_S)\nRelay=1 → discharge (0 V)' }, position: { x: 220, y: 60 } },
+    { id: 'c_vs', type: BlockType.Comment, params: { text: 'OUT1: +24 V supply\n(charge phase)' }, position: { x: -36.09, y: 259.15 } },
+    { id: 'c_gnd', type: BlockType.Comment, params: { text: 'OUT2: 0 V\ndischarge path' }, position: { x: -12.93, y: 96.28 } },
+    { id: 'c_sw', type: BlockType.Comment, params: { text: 'Switch: OUT1/OUT2 routing\nRelay=0 → charge (V_S)\nRelay=1 → discharge (0 V)' }, position: { x: 173.44, y: 89.10 } },
     { id: 'c_tf', type: BlockType.Comment, params: { text: 'G(s) = 1/(τs+1)\nτ = 2 s @ 25 °C\n(R1+R_T)·C = 20 kΩ · 100 µF' }, position: { x: 400, y: 60 } },
-    { id: 'c_relay', type: BlockType.Comment, params: { text: 'IN pin: Relay @ V_L1 = 12 V\nswitchOff = 1 V (hysteresis)\nOutput: 1 = charged, 0 = discharged' }, position: { x: 580, y: 440 } },
+    { id: 'c_relay', type: BlockType.Comment, params: { text: 'IN pin: Relay @ V_L1 = 12 V\nswitchOff = 1 V (hysteresis)\nOutput: 1 = charged, 0 = discharged' }, position: { x: 530.01, y: 459.29 } },
   ],
   edges: [
-    // GND and V_S into Switch (input[0]=0 discharge, input[2]=V_S charge)
     { id: 'e1', source: 'gnd', sourcePort: 0, target: 'sw', targetPort: 0, waypoints: [] },
     { id: 'e2', source: 'vs', sourcePort: 0, target: 'sw', targetPort: 2, waypoints: [] },
-    // Switch output → TF plant → V_C
     { id: 'e3', source: 'sw', sourcePort: 0, target: 'tf', targetPort: 0, waypoints: [] },
-    // V_C → Relay (IN pin threshold detector)
-    { id: 'e4', source: 'tf', sourcePort: 0, target: 'relay', targetPort: 0, waypoints: [] },
-    // Relay output → Switch control (input[1])
-    { id: 'e5', source: 'relay', sourcePort: 0, target: 'sw', targetPort: 1, waypoints: [] },
-    // V_C → Scope
+    { id: 'e4', source: 'tf', sourcePort: 0, target: 'relay', targetPort: 0, waypoints: [{ x: 543.24, y: 220.01 }, { x: 543.24, y: 360.01 }] },
     { id: 'e6', source: 'tf', sourcePort: 0, target: 'scope_v', targetPort: 0, waypoints: [] },
-    // Relay → Scope
     { id: 'e7', source: 'relay', sourcePort: 0, target: 'scope_r', targetPort: 0, waypoints: [] },
+    { id: 'e-relay-sw-1788229996272', source: 'relay', sourcePort: 0, target: 'sw', targetPort: 1, waypoints: [{ x: 700, y: 360 }, { x: 700, y: 440 }, { x: 179.36, y: 440 }, { x: 179.36, y: 220.80 }] },
   ],
-  simConfig: { dt: 0.01, duration: 10 },
+  simConfig: { dt: 0.01, duration: 20 },
 };
 
 export const EXAMPLES: Example[] = [
