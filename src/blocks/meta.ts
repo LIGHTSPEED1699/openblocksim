@@ -1,10 +1,9 @@
-import { BlockType, BlockCategory, type BlockMetaEntry, type Params } from './types';
+import { BlockType, type BlockMetaEntry } from './types';
 
 // Re-export ParamSpec entries from ParameterPanel for the metadata registry.
 // These mirror the PARAM_SPECS in ParameterPanel.tsx — the single source of truth
 // is now BlockMeta. The ParameterPanel will be updated to read from here in a
 // follow-up, but for now both coexist to avoid breaking existing behavior.
-import type { ParamSpec } from './types';
 
 const meta: Record<BlockType, BlockMetaEntry> = {
   // ── Sources ──
@@ -55,12 +54,8 @@ const meta: Record<BlockType, BlockMetaEntry> = {
 
   // ── Nonlinear ──
   [BlockType.Saturation]: { type: BlockType.Saturation, category: 'Nonlinear', math: '\\text{sat}', doc: 'Saturate to [lower, upper] limits', paramSpec: { lowerLimit: { type: 'number', default: -1, label: 'Lower Limit' }, upperLimit: { type: 'number', default: 1, label: 'Upper Limit' } },
-    eventG: (_t, _state, params) => {
-      const lo = params.lowerLimit as number;
-      const hi = params.upperLimit as number;
-      // Signed distance to limits (negative = inside, positive = outside)
-      // The actual input is stored in state by the compiler; here we return
-      // residual based on the block's own state tracking.
+    eventG: () => {
+      // Signed distance to limits — actual input is bound by compiler (Task 1.2)
       return [];
     },
   },
@@ -80,7 +75,7 @@ const meta: Record<BlockType, BlockMetaEntry> = {
   // ── Control ──
   [BlockType.PID]: { type: BlockType.PID, category: 'Control', math: 'K_p + \\frac{K_i}{s} + K_d s', doc: 'PID controller', portLabels: ['e', 'PV'], paramSpec: { Kp: { type: 'number', default: 1, label: 'Proportional Gain (Kp)' }, Ti: { type: 'number', default: 0, min: 0, step: 0.1, label: 'Integral Time Ti (s)' }, Td: { type: 'number', default: 0, min: 0, step: 0.1, label: 'Derivative Time Td (s)' } } },
   [BlockType.Relay]: { type: BlockType.Relay, category: 'Control', math: '\\text{relay}', doc: 'Relay with hysteresis', paramSpec: { onValue: { type: 'number', default: 1, label: 'On Value' }, offValue: { type: 'number', default: -1, label: 'Off Value' }, switchOn: { type: 'number', default: 0.5, label: 'Switch On Threshold' }, switchOff: { type: 'number', default: -0.5, label: 'Switch Off Threshold' } },
-    eventG: (_t, state, params) => {
+    eventG: (_t, state, _params) => {
       // Relay state[0] holds the current output; the crossing residual is
       // the distance of the relay input to the relevant switching threshold.
       // The compiler will bind the input to this function; for the metadata
