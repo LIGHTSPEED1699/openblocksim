@@ -182,7 +182,7 @@ export function solveAdaptive(
 
   while (t < duration - 1e-12) {
     if (totalEvaluations > MAX_STEPS * 7) {
-      throw new Error(`Step count exceeds maximum of ${MAX_STEPS} (adaptive solver stuck)`);
+      throw new Error(`Step count exceeds maximum of ${MAX_STEPS} (adaptive solver stuck — system may be stiff. Try the BDF solver.)`);
     }
 
     // Don't overshoot end time
