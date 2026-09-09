@@ -38,3 +38,50 @@ export function compileExpression(
   };
   return evaluator;
 }
+
+export function resolveExpressionParams(
+  blockId: string,
+  params: Record<string, number | number[] | string>,
+  isNumberParam: (key: string) => boolean,
+): Record<string, number | number[] | string> {
+  const out: Record<string, number | number[] | string> = {};
+  const pending: { key: string; body: string; lastErr: unknown }[] = [];
+
+  // Pass 1: copy through non-expression values and collect expression params.
+  for (const [key, value] of Object.entries(params)) {
+    if (isNumberParam(key) && isExpressionValue(value)) {
+      pending.push({ key, body: value.slice(EXPR_PREFIX.length), lastErr: undefined });
+    } else {
+      out[key] = value;
+    }
+  }
+
+  // Passes 2..N: evaluate expressions against the growing scope until fixed point.
+  for (let pass = 0; pass < 5 && pending.length > 0; pass++) {
+    const stillPending: typeof pending = [];
+    for (const item of pending) {
+      const evaluator = compileExpression(item.body);
+      try {
+        const value = evaluator(out);
+        if (value === undefined || (typeof value === 'number' && Number.isNaN(value))) {
+          throw new TypeError('expression produced NaN/undefined');
+        }
+        out[item.key] = value;
+      } catch (err) {
+        item.lastErr = err;
+        stillPending.push(item);
+      }
+    }
+    if (stillPending.length === pending.length) break; // no progress this pass
+    pending.splice(0, pending.length, ...stillPending);
+  }
+
+  if (pending.length > 0) {
+    const first = pending[0];
+    const detail = first.lastErr instanceof Error ? first.lastErr.message : String(first.lastErr);
+    throw new Error(
+      `Cannot resolve expression parameter "${first.key}" on block "${blockId}" (=${first.body}): ${detail}`,
+    );
+  }
+  return out;
+}
