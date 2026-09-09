@@ -21,6 +21,8 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 - **Node flip** (F key or right-click → Flip) — mirrors a node and swaps its input/output handle sides
 - **Draggable wire waypoints** — drag any edge to bend it, drag waypoint dots to re-route, double-click a dot to delete; waypoints persist in the model JSON
 - **JSON export/import** for saving and sharing models
+- **Example gallery** — 9 prebuilt models (step responses, PID loops, relay bang-bang, drum-level control, MRAC, …) loadable from the Examples menu
+- **Share by link** — Copy Link encodes the current model into the URL hash (#m=…); opening that URL loads the model
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere
 
