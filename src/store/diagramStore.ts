@@ -65,7 +65,7 @@ interface DiagramState {
   endCoalesce: () => void;
 }
 
-function docToState(doc: DiagramDoc): { nodes: Node[]; edges: Edge[]; params: Record<string, Params> } {
+function docToState(doc: DiagramDoc): { nodes: Node[]; edges: Edge[]; params: Record<string, Params>; groups: GroupBox[] } {
   return {
     nodes: doc.nodes.map((n) => ({
       id: n.id,
@@ -83,6 +83,7 @@ function docToState(doc: DiagramDoc): { nodes: Node[]; edges: Edge[]; params: Re
       data: e.data,
     })),
     params: doc.params,
+    groups: doc.groups,
   };
 }
 
@@ -91,7 +92,7 @@ export const useDiagramStore = create<DiagramState>()(
     (set, get) => {
       const currentDoc = (): DiagramDoc => {
         const s = get();
-        return snapshotDoc(s.nodes, s.edges, s.params);
+        return snapshotDoc(s.nodes, s.edges, s.params, s.groups);
       };
 
       /** Coalescing window (gesture in progress). Kept in the closure: never persisted. */
@@ -114,7 +115,7 @@ export const useDiagramStore = create<DiagramState>()(
       };
 
       const applyDoc = (doc: DiagramDoc) => {
-        set({ ...docToState(doc), selectedBlockId: null });
+        set({ ...docToState(doc), selectedBlockId: null, selectedGroupId: null });
       };
 
       return {
@@ -169,8 +170,13 @@ export const useDiagramStore = create<DiagramState>()(
           recordMutation(before, currentDoc(), `param:${id}:${Object.keys(params).sort().join(',')}`);
         },
         selectBlock: (id) => set((state) => ({ selectedBlockId: id, selectedGroupId: id === null ? state.selectedGroupId : null })),
-        setGroups: (groups) => set({ groups }),
-        addGroup: (init) =>
+        setGroups: (groups) => {
+          const before = currentDoc();
+          set({ groups });
+          recordMutation(before, currentDoc());
+        },
+        addGroup: (init) => {
+          const before = currentDoc();
           set((state) => {
             const n = state.groups.length;
             const x = init?.x ?? 60 + (n % 6) * 28;
@@ -185,8 +191,11 @@ export const useDiagramStore = create<DiagramState>()(
               height: Math.max(GROUP_BOX_MIN_HEIGHT, init?.height ?? 180),
             };
             return { groups: [...state.groups, group] };
-          }),
-        moveGroupTo: (id, x, y) =>
+          });
+          recordMutation(before, currentDoc());
+        },
+        moveGroupTo: (id, x, y) => {
+          const before = currentDoc();
           set((state) => {
             const g = state.groups.find((gr) => gr.id === id);
             if (!g) return state;
@@ -200,8 +209,11 @@ export const useDiagramStore = create<DiagramState>()(
                 members.has(n.id) ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } } : n,
               ),
             };
-          }),
-        resizeGroup: (id, patch) =>
+          });
+          recordMutation(before, currentDoc());
+        },
+        resizeGroup: (id, patch) => {
+          const before = currentDoc();
           set((state) => ({
             groups: state.groups.map((gr) =>
               gr.id === id
@@ -214,8 +226,11 @@ export const useDiagramStore = create<DiagramState>()(
                   }
                 : gr,
             ),
-          })),
-        deleteGroup: (id) =>
+          }));
+          recordMutation(before, currentDoc());
+        },
+        deleteGroup: (id) => {
+          const before = currentDoc();
           set((state) => {
             const g = state.groups.find((gr) => gr.id === id);
             if (!g) return state;
@@ -228,8 +243,14 @@ export const useDiagramStore = create<DiagramState>()(
               selectedGroupId: state.selectedGroupId === id ? null : state.selectedGroupId,
               selectedBlockId: members.has(state.selectedBlockId ?? '') ? null : state.selectedBlockId,
             };
-          }),
-        selectGroup: (id) => set((state) => ({ selectedGroupId: id, selectedBlockId: id === null ? state.selectedBlockId : null })),
+          });
+          recordMutation(before, currentDoc());
+        },
+        selectGroup: (id) => {
+          const before = currentDoc();
+          set((state) => ({ selectedGroupId: id, selectedBlockId: id === null ? state.selectedBlockId : null }));
+          recordMutation(before, currentDoc());
+        },
         setSimResults: (results) => set({ simResults: results, simError: null }),
         setSimError: (error) => set({ simError: error, simResults: null }),
         setSimConfig: (config) =>
