@@ -211,9 +211,21 @@ export function compileGraph(
 
   // Build feedback edge lookup: "targetId:targetPort" → is feedback?
   const feedbackEdgeLookup = new Set<string>();
+  // Algebraic-loop feedback edges: these read from current-iteration outputs
+  // (fixed-point iteration) instead of prevOutputs (one-step delay).
+  const algebraicFeedbackLookup = new Set<string>();
   for (const e of validEdges) {
     if (feedbackEdges.has(e.id)) {
       feedbackEdgeLookup.add(`${e.target}:${e.targetPort}`);
+    }
+  }
+  // Mark feedback edges that belong to algebraic loops
+  for (const cycle of algebraicLoops) {
+    const cycleSet = new Set(cycle);
+    for (const e of validEdges) {
+      if (feedbackEdges.has(e.id) && cycleSet.has(e.source) && cycleSet.has(e.target)) {
+        algebraicFeedbackLookup.add(`${e.target}:${e.targetPort}`);
+      }
     }
   }
 
@@ -228,10 +240,14 @@ export function compileGraph(
     for (let port = 0; port < block.inputs; port++) {
       const wire = inputWires.find((w) => w.targetPort === port);
       if (wire) {
-        // Use previous-step output for feedback edges (one-step delay)
         const isFeedback = feedbackEdgeLookup.has(`${id}:${port}`);
+        const isAlgebraic = algebraicFeedbackLookup.has(`${id}:${port}`);
+        // Algebraic-loop feedback: read current-iteration output (fixed-point)
+        // Dynamic-loop feedback: read previous-step output (one-step delay)
         const sourceOutputs = isFeedback
-          ? (prevOutputs.get(wire.source) ?? [0])
+          ? (isAlgebraic
+              ? (outputs.get(wire.source) ?? prevOutputs.get(wire.source) ?? [0])
+              : (prevOutputs.get(wire.source) ?? [0]))
           : (outputs.get(wire.source) ?? []);
         inputValues.push(sourceOutputs[wire.sourcePort] ?? 0);
       } else {
@@ -329,6 +345,34 @@ export function compileGraph(
     prevOutputs = getOutputs(t, state);
   };
 
+  // algebraicLoopSolver — iterates algebraic loop outputs to a fixed point.
+  // Called by the solver before each step so that algebraic-loop feedback
+  // edges see converged current-step values instead of one-step-delayed ones.
+  // Gauss-Seidel: each getOutputs call walks the block order; algebraic
+  // feedback edges read current-iteration outputs, so repeated calls converge.
+  const algebraicLoopSolver = algebraicLoops.length > 0
+    ? (t: number, state: number[]): void => {
+        const maxIter = 50;
+        const tol = 1e-9;
+        let prev = getOutputs(t, state);
+        for (let iter = 0; iter < maxIter; iter++) {
+          // Update prevOutputs so the next getOutputs call reads this iteration's outputs
+          prevOutputs = prev;
+          const next = getOutputs(t, state);
+          let maxDiff = 0;
+          for (const [id, vals] of next) {
+            const pv = prev.get(id) ?? [];
+            for (let i = 0; i < vals.length; i++) {
+              maxDiff = Math.max(maxDiff, Math.abs((vals[i] ?? 0) - (pv[i] ?? 0)));
+            }
+          }
+          prev = next;
+          if (maxDiff < tol) break;
+        }
+        prevOutputs = prev;
+      }
+    : undefined;
+
   // Map scope block IDs to their input wires (source + sourcePort)
   const scopeInputs = new Map<string, { source: string; sourcePort: number }[]>();
   for (const id of scopeBlockIds) {
@@ -374,5 +418,6 @@ export function compileGraph(
     events,
     algebraicLoops,
     dynamicLoops,
+    algebraicLoopSolver,
   };
 }

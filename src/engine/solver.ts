@@ -34,6 +34,11 @@ export function solve(
 
   time[0] = t;
 
+  // Solve algebraic loops to fixed point at t=0 (before any output capture)
+  if (model.algebraicLoopSolver) {
+    model.algebraicLoopSolver(t, state);
+  }
+
   // Initialize previous-step outputs for feedback edges
   if (model.updatePrevOutputs) {
     model.updatePrevOutputs(t, state);
@@ -59,6 +64,10 @@ export function solve(
   }
 
   for (let step = 0; step < numSteps; step++) {
+    // Solve algebraic loops to fixed point at the current time/state
+    if (model.algebraicLoopSolver) {
+      model.algebraicLoopSolver(t, state);
+    }
     // RK4 for derivative-mode blocks
     const k1 = model.f(t, state);
     const k2 = model.f(t + dt / 2, state.map((s, i) => s + (dt / 2) * k1[i]));
@@ -76,6 +85,11 @@ export function solve(
 
     t += dt;
     time[step + 1] = t;
+
+    // Re-solve algebraic loops at the new time/state for accurate scope capture
+    if (model.algebraicLoopSolver) {
+      model.algebraicLoopSolver(t, state);
+    }
 
     // NaN/Infinity check
     for (let i = 0; i < state.length; i++) {
@@ -165,6 +179,9 @@ export function solveAdaptive(
 
   const FAC = 0.9, FACMIN = 0.2, FACMAX = 5.0;
 
+  // Solve algebraic loops at t=0
+  if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
+
   // Initialize prevOutputs and scope capture at t=0
   if (model.updatePrevOutputs) model.updatePrevOutputs(t, state);
   if (model.getOutputs) {
@@ -184,6 +201,9 @@ export function solveAdaptive(
     if (totalEvaluations > MAX_STEPS * 7) {
       throw new Error(`Step count exceeds maximum of ${MAX_STEPS} (adaptive solver stuck — system may be stiff. Try the BDF solver.)`);
     }
+
+    // Solve algebraic loops at the current time/state before evaluating f
+    if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
 
     // Don't overshoot end time
     if (t + h > duration) h = duration - t;
@@ -265,6 +285,9 @@ export function solveAdaptive(
 
       // Apply absolute state updates (TransportDelay, Relay, etc.)
       if (model.applyAbsoluteState) model.applyAbsoluteState(t, state);
+
+      // Re-solve algebraic loops at the new time/state
+      if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
 
       // NaN check
       for (let i = 0; i < n; i++) {
@@ -414,6 +437,7 @@ export function solveBDF(
     }
   };
 
+  if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
   if (model.updatePrevOutputs) model.updatePrevOutputs(t, state);
   captureScopes(0, state, 0);
 
@@ -422,6 +446,9 @@ export function solveBDF(
   for (let step = 0; step < numSteps; step++) {
     const tNext = (step + 1) * dt;
     let accepted = false;
+
+    // Solve algebraic loops at the current time/state
+    if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
 
     while (!accepted) {
       const hTry = Math.min(h, tNext - t);
@@ -513,6 +540,7 @@ export function solveBDF(
     time[step + 1] = t;
 
     if (model.applyAbsoluteState) model.applyAbsoluteState(t, state);
+    if (model.algebraicLoopSolver) model.algebraicLoopSolver(t, state);
 
     for (let i = 0; i < n; i++) {
       if (!isFinite(state[i])) {
