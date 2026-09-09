@@ -4,6 +4,7 @@ import type { Node, Edge } from '@xyflow/react';
 import { BlockType, Params } from '../blocks/types';
 import type { SolverStats } from '../engine/types';
 import { pushEntry, sameDoc, snapshotDoc, type DiagramDoc, type HistoryEntry } from './history';
+import { GroupBox, GroupBoxRect, GROUP_BOX_COLORS, GROUP_BOX_MIN_WIDTH, GROUP_BOX_MIN_HEIGHT, groupMemberIds } from '../utils/groups';
 
 interface SimConfig {
   dt: number;
@@ -31,6 +32,8 @@ interface DiagramState {
   simConfig: SimConfig;
   simError: string | null;
   theme: 'dark' | 'light';
+  groups: GroupBox[];
+  selectedGroupId: string | null;
 
   /** Undo/redo history (session-transient — excluded from persist via partialize). */
   past: HistoryEntry[];
@@ -44,6 +47,12 @@ interface DiagramState {
   removeNode: (id: string) => void;
   updateParams: (id: string, params: Params) => void;
   selectBlock: (id: string | null) => void;
+  setGroups: (groups: GroupBox[]) => void;
+  addGroup: (init?: Partial<GroupBoxRect>) => void;
+  moveGroupTo: (id: string, x: number, y: number) => void;
+  resizeGroup: (id: string, patch: Partial<GroupBoxRect>) => void;
+  deleteGroup: (id: string) => void;
+  selectGroup: (id: string | null) => void;
   setSimResults: (results: SimResults | null) => void;
   setSimError: (error: string | null) => void;
   setSimConfig: (config: Partial<SimConfig>) => void;
@@ -117,6 +126,8 @@ export const useDiagramStore = create<DiagramState>()(
         simConfig: { dt: 0.01, duration: 10 },
         simError: null,
         theme: 'dark',
+        groups: [],
+        selectedGroupId: null,
         past: [],
         future: [],
         canUndo: false,
@@ -157,7 +168,68 @@ export const useDiagramStore = create<DiagramState>()(
           }));
           recordMutation(before, currentDoc(), `param:${id}:${Object.keys(params).sort().join(',')}`);
         },
-        selectBlock: (id) => set({ selectedBlockId: id }),
+        selectBlock: (id) => set((state) => ({ selectedBlockId: id, selectedGroupId: id === null ? state.selectedGroupId : null })),
+        setGroups: (groups) => set({ groups }),
+        addGroup: (init) =>
+          set((state) => {
+            const n = state.groups.length;
+            const x = init?.x ?? 60 + (n % 6) * 28;
+            const y = init?.y ?? 60 + (n % 6) * 28;
+            const group: GroupBox = {
+              id: `grp-${Date.now()}-${n}`,
+              name: `Group ${n + 1}`,
+              color: GROUP_BOX_COLORS[n % GROUP_BOX_COLORS.length],
+              x,
+              y,
+              width: Math.max(GROUP_BOX_MIN_WIDTH, init?.width ?? 280),
+              height: Math.max(GROUP_BOX_MIN_HEIGHT, init?.height ?? 180),
+            };
+            return { groups: [...state.groups, group] };
+          }),
+        moveGroupTo: (id, x, y) =>
+          set((state) => {
+            const g = state.groups.find((gr) => gr.id === id);
+            if (!g) return state;
+            const dx = x - g.x;
+            const dy = y - g.y;
+            if (dx === 0 && dy === 0) return state;
+            const members = new Set(groupMemberIds(g, state.nodes));
+            return {
+              groups: state.groups.map((gr) => (gr.id === id ? { ...gr, x, y } : gr)),
+              nodes: state.nodes.map((n) =>
+                members.has(n.id) ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } } : n,
+              ),
+            };
+          }),
+        resizeGroup: (id, patch) =>
+          set((state) => ({
+            groups: state.groups.map((gr) =>
+              gr.id === id
+                ? {
+                    ...gr,
+                    x: patch.x ?? gr.x,
+                    y: patch.y ?? gr.y,
+                    width: Math.max(GROUP_BOX_MIN_WIDTH, patch.width ?? gr.width),
+                    height: Math.max(GROUP_BOX_MIN_HEIGHT, patch.height ?? gr.height),
+                  }
+                : gr,
+            ),
+          })),
+        deleteGroup: (id) =>
+          set((state) => {
+            const g = state.groups.find((gr) => gr.id === id);
+            if (!g) return state;
+            const members = new Set(groupMemberIds(g, state.nodes));
+            return {
+              groups: state.groups.filter((gr) => gr.id !== id),
+              nodes: state.nodes.filter((n) => !members.has(n.id)),
+              edges: state.edges.filter((e) => !members.has(e.source) && !members.has(e.target)),
+              params: Object.fromEntries(Object.entries(state.params).filter(([k]) => !members.has(k))),
+              selectedGroupId: state.selectedGroupId === id ? null : state.selectedGroupId,
+              selectedBlockId: members.has(state.selectedBlockId ?? '') ? null : state.selectedBlockId,
+            };
+          }),
+        selectGroup: (id) => set((state) => ({ selectedGroupId: id, selectedBlockId: id === null ? state.selectedBlockId : null })),
         setSimResults: (results) => set({ simResults: results, simError: null }),
         setSimError: (error) => set({ simError: error, simResults: null }),
         setSimConfig: (config) =>
@@ -166,6 +238,7 @@ export const useDiagramStore = create<DiagramState>()(
         clear: () =>
           set({
             nodes: [], edges: [], params: {}, selectedBlockId: null,
+            groups: [], selectedGroupId: null,
             simResults: null, simError: null,
             past: [], future: [], canUndo: false, canRedo: false,
           }),
@@ -221,6 +294,7 @@ export const useDiagramStore = create<DiagramState>()(
         params: state.params,
         simConfig: state.simConfig,
         theme: state.theme,
+        groups: state.groups,
       }),
       onRehydrateStorage: (state: DiagramState) => {
         if (!state.edges) return;

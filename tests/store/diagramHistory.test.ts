@@ -179,6 +179,6 @@ describe('diagramStore history (record / undo / redo)', () => {
     const raw = localStorage.getItem('openblocksim-store');
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw as string) as { state: Record<string, unknown> };
-    expect(Object.keys(parsed.state).sort()).toEqual(['edges', 'nodes', 'params', 'simConfig', 'theme']);
+    expect(Object.keys(parsed.state).sort()).toEqual(['edges', 'groups', 'nodes', 'params', 'simConfig', 'theme']);
   });
 });
