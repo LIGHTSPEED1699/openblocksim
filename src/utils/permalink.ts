@@ -72,3 +72,31 @@ export function parsePermalinkHash(hash: string): ExportedModel | null {
   if (!hash.startsWith(PERMALINK_HASH_PREFIX)) return null;
   return decodeModel(hash.slice(PERMALINK_HASH_PREFIX.length));
 }
+
+export function buildShareUrl(model: ExportedModel): string {
+  const base = `${location.origin}${location.pathname}`;
+  return `${base}${PERMALINK_HASH_PREFIX}${encodeModel(model)}`;
+}
+
+export async function copyText(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  // Fallback: hidden textarea + execCommand (older browsers / non-secure contexts).
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  let ok = false;
+  try {
+    ta.select();
+    ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+  } catch {
+    ok = false; // execCommand absent or throws (e.g. jsdom) — report Clipboard unavailable
+  } finally {
+    document.body.removeChild(ta);
+  }
+  if (!ok) throw new Error('Clipboard unavailable');
+}

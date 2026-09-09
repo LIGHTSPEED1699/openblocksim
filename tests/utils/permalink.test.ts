@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { encodeModel, decodeModel, parsePermalinkHash } from '../../src/utils/permalink';
+import { describe, it, expect, vi } from 'vitest';
+import { encodeModel, decodeModel, parsePermalinkHash, buildShareUrl, copyText } from '../../src/utils/permalink';
 import type { ExportedModel } from '../../src/utils/exportImport';
 
 // A realistic model incl. Unicode comment text, arrays, and waypoints —
@@ -52,5 +52,38 @@ describe('parsePermalinkHash', () => {
 
   it('throws on a prefixed but corrupt payload', () => {
     expect(() => parsePermalinkHash('#m=corrupt!!')).toThrow(/Invalid model link/);
+  });
+});
+
+describe('buildShareUrl + copyText', () => {
+  it('builds a share URL ending in #m=<payload> on the current origin/path', () => {
+    const url = buildShareUrl(MODEL);
+    expect(url.startsWith(location.origin)).toBe(true);
+    expect(url.endsWith(`#m=${encodeModel(MODEL)}`)).toBe(true);
+  });
+
+  it('copyText delegates to navigator.clipboard.writeText', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const original = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    try {
+      await copyText('hello');
+      expect(writeText).toHaveBeenCalledWith('hello');
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { value: original, configurable: true });
+    }
+  });
+
+  it('copyText throws when clipboard is unavailable', async () => {
+    const original = navigator.clipboard;
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    try {
+      await expect(copyText('hello')).rejects.toThrow('Clipboard unavailable');
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { value: original, configurable: true });
+    }
   });
 });
