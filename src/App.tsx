@@ -8,6 +8,7 @@ import { Toolbar } from './components/Toolbar';
 import { PlotArea } from './components/PlotArea';
 import { exportModel, importModel, loadModel } from './utils/exportImport';
 import { importSimulinkModel } from './utils/simulinkImport';
+import { exportDiagramSvg, exportDiagramPng, type ExportableNode, type ExportableEdge } from './utils/exportDiagram';
 import { EXAMPLES } from './examples';
 import type { WorkerMessage } from './engine/types';
 import type { BlockType } from './blocks/types';
@@ -152,6 +153,31 @@ export default function App() {
     setSimError(null);
   };
 
+  const handleExportSvg = () => {
+    const store = useDiagramStore.getState();
+    const svg = exportDiagramSvg(store.nodes as ExportableNode[], store.edges as ExportableEdge[]);
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'diagram.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPng = async () => {
+    const canvas = document.querySelector('.react-flow');
+    if (!(canvas instanceof HTMLElement)) {
+      setSimError('Nothing to export — the diagram canvas is not mounted.');
+      return;
+    }
+    try {
+      await exportDiagramPng(canvas, 'diagram.png');
+    } catch (err) {
+      setSimError(`PNG export failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <Toolbar
@@ -171,6 +197,8 @@ export default function App() {
         atol={simConfig.atol ?? 1e-6}
         onRtolChange={(rtol) => setSimConfig({ rtol })}
         onAtolChange={(atol) => setSimConfig({ atol })}
+        onExportSvg={handleExportSvg}
+        onExportPng={handleExportPng}
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />
