@@ -23,6 +23,7 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 - **JSON export/import** for saving and sharing models
 - **Example gallery** — 9 prebuilt models (step responses, PID loops, relay bang-bang, drum-level control, MRAC, …) loadable from the Examples menu
 - **Share by link** — Copy Link encodes the current model into the URL hash (#m=…); opening that URL loads the model
+- **Parameter expressions** — any numeric parameter accepts a `=`-prefixed JS expression (e.g. `=Kp/4`) referencing the block's other parameters plus `Math`/`pi`; resolved once when the simulation starts
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere
 
