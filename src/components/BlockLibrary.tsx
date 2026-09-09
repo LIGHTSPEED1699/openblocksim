@@ -38,6 +38,8 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.MathFunction]: 'f(x)',
   [BlockType.TrigFunction]: 'sin',
   [BlockType.Interpolate]: 'LUT',
+  [BlockType.Pow]: 'uʸ',
+  [BlockType.Clip]: '⧉',
   [BlockType.RateLimiter]: '⇄',
   [BlockType.Quantizer]: 'Q',
   [BlockType.Backlash]: '⊣',

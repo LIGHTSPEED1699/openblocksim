@@ -29,6 +29,8 @@ export enum BlockType {
   MathFunction = 'MathFunction',
   TrigFunction = 'TrigFunction',
   Interpolate = 'Interpolate',
+  Pow = 'Pow',
+  Clip = 'Clip',
   Mux = 'Mux',
   Demux = 'Demux',
   Switch = 'Switch',

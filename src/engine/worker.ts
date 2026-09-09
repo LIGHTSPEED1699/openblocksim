@@ -33,6 +33,8 @@ import { RoundingFunction } from '../blocks/math/RoundingFunction';
 import { MathFunction } from '../blocks/math/MathFunction';
 import { TrigFunction } from '../blocks/math/TrigFunction';
 import { Interpolate } from '../blocks/math/Interpolate';
+import { Pow } from '../blocks/math/Pow';
+import { Clip } from '../blocks/math/Clip';
 import { Switch } from '../blocks/routing/Switch';
 import { Mux } from '../blocks/routing/Mux';
 import { Demux } from '../blocks/routing/Demux';
@@ -85,6 +87,8 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.MathFunction, MathFunction);
   r.register(BlockType.TrigFunction, TrigFunction);
   r.register(BlockType.Interpolate, Interpolate);
+  r.register(BlockType.Pow, Pow);
+  r.register(BlockType.Clip, Clip);
   r.register(BlockType.Switch, Switch);
   r.register(BlockType.Mux, Mux);
   r.register(BlockType.Demux, Demux);

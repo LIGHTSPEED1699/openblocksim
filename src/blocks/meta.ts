@@ -39,6 +39,8 @@ const meta: Record<BlockType, BlockMetaEntry> = {
   [BlockType.MathFunction]: { type: BlockType.MathFunction, category: 'Math', math: 'f(x)', doc: 'Math function (exp, log, power, etc.)', paramSpec: { mode: { type: 'select', default: 'exp', label: 'Function' }, exponent: { type: 'number', default: 2, label: 'Exponent (power mode)' } } },
   [BlockType.TrigFunction]: { type: BlockType.TrigFunction, category: 'Math', math: '\\sin', doc: 'Trigonometric function', paramSpec: { mode: { type: 'select', default: 'sin', label: 'Function' } } },
   [BlockType.Interpolate]: { type: BlockType.Interpolate, category: 'Math', math: '\\text{1-D LUT}', doc: '1D/2D lookup table with linear interpolation', paramSpec: { breakpoints: { type: 'array', default: [0, 1, 2], label: 'Breakpoints (1st dim)' }, breakpoints2: { type: 'array', default: [], label: 'Breakpoints (2nd dim, empty = 1D)' }, table: { type: 'array', default: [0, 10, 20], label: 'Table values' } } },
+  [BlockType.Pow]: { type: BlockType.Pow, category: 'Math', math: 'u^p', doc: 'Raise input to a power', paramSpec: { exponent: { type: 'number', default: 2, label: 'Exponent' } } },
+  [BlockType.Clip]: { type: BlockType.Clip, category: 'Math', math: '\\text{clip}', doc: 'Saturate input to [min, max]', paramSpec: { min: { type: 'number', default: -1, label: 'Lower Limit' }, max: { type: 'number', default: 1, label: 'Upper Limit' } } },
 
   // ── Linear ──
   [BlockType.TransferFunction]: { type: BlockType.TransferFunction, category: 'Linear', math: '\\frac{N(s)}{D(s)}', doc: 'Continuous transfer function', paramSpec: { num: { type: 'array', default: [1], label: 'Numerator coefficients' }, den: { type: 'array', default: [1, 1], label: 'Denominator coefficients' } } },
