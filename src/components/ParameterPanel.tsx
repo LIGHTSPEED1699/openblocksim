@@ -94,16 +94,24 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
     threshold: { type: 'number', default: 0, label: 'Threshold' },
     condition: { type: 'select', default: 'u2>=threshold', label: 'Condition' },
   },
-  [BlockType.UnitDelay]: { initialValue: { type: 'number', default: 0, label: 'Initial Value' } },
+  [BlockType.UnitDelay]: {
+    initialValue: { type: 'number', default: 0, label: 'Initial Value' },
+    sampleTime: { type: 'number', default: 0, min: 0, step: 0.01, label: 'Sample Time (s, 0 = every step)' },
+  },
   [BlockType.DiscreteIntegrator]: {
     method: { type: 'select', default: 'forward-euler', label: 'Integration Method' },
     initialValue: { type: 'number', default: 0, label: 'Initial Value' },
+    sampleTime: { type: 'number', default: 0, min: 0, step: 0.01, label: 'Sample Time (s, 0 = every step)' },
   },
   [BlockType.DiscreteTransferFcn]: {
     num: { type: 'array', default: [1], label: 'Numerator (descending z)' },
     den: { type: 'array', default: [1, -0.5], label: 'Denominator (descending z)' },
+    sampleTime: { type: 'number', default: 0, min: 0, step: 0.01, label: 'Sample Time (s, 0 = every step)' },
   },
-  [BlockType.Memory]: { initialValue: { type: 'number', default: 0, label: 'Initial Value' } },
+  [BlockType.Memory]: {
+    initialValue: { type: 'number', default: 0, label: 'Initial Value' },
+    sampleTime: { type: 'number', default: 0, min: 0, step: 0.01, label: 'Sample Time (s, 0 = every step)' },
+  },
   [BlockType.RateLimiter]: {
     risingSlew: { type: 'number', default: 1, label: 'Rising Slew Rate' },
     fallingSlew: { type: 'number', default: -1, label: 'Falling Slew Rate' },
