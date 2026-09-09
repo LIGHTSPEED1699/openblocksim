@@ -14,8 +14,9 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
+import { flipOnKeydown } from '../utils/nodeKeyboard';
 import { BlockType, BlockCategory, type BlockFactory, type Params } from '../blocks/types';
 import { GroupBoxNode, GROUP_NODE_TYPE } from './nodes/GroupBoxNode';
 import { partitionNodeChanges } from '../utils/groupNodeChanges';
@@ -174,6 +175,13 @@ export function DiagramCanvas() {
   const selectGroup = useDiagramStore((s) => s.selectGroup);
   const { screenToFlowPosition, getNode } = useReactFlow();
   const [wireActive, setWireActive] = useState(false);
+
+  // Feature H R-H2: F flips the selected node (see flipOnKeydown guards).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => flipOnKeydown(e);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // Derived array handed to ReactFlow: user nodes + one GroupBox node per group.
   const displayNodes = useMemo<Node[]>(() => {
