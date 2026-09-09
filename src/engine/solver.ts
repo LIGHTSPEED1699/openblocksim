@@ -1,4 +1,4 @@
-import type { CompiledModel, SimResult, SolverStats } from './types';
+import type { CompiledModel, SimResult, SolverStats, SimConfig } from './types';
 
 const MAX_DURATION = 600;
 const MAX_STEPS = 100000;
@@ -318,4 +318,179 @@ export function solveAdaptive(
   };
 
   return { time, traces: {}, scopes, actualSteps, crossingTimes, stats };
+}
+
+const BDF_NEWTON_TOL = 1e-9;
+const BDF_NEWTON_MAX_ITER = 50;
+const BDF_H_MIN = 1e-14;
+
+export function solveBDF(
+  model: CompiledModel,
+  config: SimConfig & { rtol?: number; atol?: number },
+  initialState: number[]
+): SimResult {
+  const { dt, duration } = config;
+  const n = model.stateSize;
+  const wallStart = Date.now();
+
+  if (duration > MAX_DURATION) {
+    throw new Error(`Simulation duration ${duration}s exceeds maximum of ${MAX_DURATION}s`);
+  }
+
+  const numSteps = Math.ceil(duration / dt);
+  if (numSteps > MAX_STEPS) {
+    throw new Error(`step count ${numSteps} exceeds maximum of ${MAX_STEPS} (dt=${dt}, duration=${duration})`);
+  }
+
+  const time: number[] = new Array(numSteps + 1);
+  const scopes: Record<string, number[]> = {};
+  for (const scopeId of model.scopeBlockIds) {
+    scopes[scopeId] = new Array(numSteps + 1);
+  }
+
+  let state = [...initialState];
+  let t = 0;
+  let actualSteps = 0;
+  let minStep = dt;
+  let maxStep = dt;
+
+  time[0] = t;
+
+  const captureScopes = (tt: number, st: number[], idx: number) => {
+    if (model.getOutputs) {
+      const allOutputs = model.getOutputs(tt, st);
+      for (const scopeId of model.scopeBlockIds) {
+        const wires = model.scopeInputs?.get(scopeId);
+        if (wires && wires.length > 0) {
+          const srcOut = allOutputs.get(wires[0].source) ?? [];
+          scopes[scopeId][idx] = srcOut[wires[0].sourcePort] ?? 0;
+        } else {
+          scopes[scopeId][idx] = 0;
+        }
+      }
+    }
+  };
+
+  if (model.updatePrevOutputs) model.updatePrevOutputs(t, state);
+  captureScopes(0, state, 0);
+
+  let h = dt;
+
+  for (let step = 0; step < numSteps; step++) {
+    const tNext = (step + 1) * dt;
+    let accepted = false;
+
+    while (!accepted) {
+      const hTry = Math.min(h, tNext - t);
+      if (hTry < BDF_H_MIN) {
+        throw new Error(`Step size underflow at t=${t.toFixed(3)}s. System may be stiff. Try the BDF solver.`);
+      }
+
+      // BDF-1 (backward Euler): x_{n+1} = x_n + h * f(t_{n+1}, x_{n+1})
+      // Newton: residual R(x) = x - x_n - h*f(t_{n+1}, x)
+      //         J = I - h * df/dx (finite-difference)
+      let x = [...state];
+      let converged = false;
+
+      for (let iter = 0; iter < BDF_NEWTON_MAX_ITER; iter++) {
+        const fNext = model.f(t + hTry, x);
+        const R = x.map((xi, i) => xi - state[i] - hTry * fNext[i]);
+        const rNorm = Math.sqrt(R.reduce((s, r) => s + r * r, 0)) / Math.max(n, 1);
+
+        if (rNorm < BDF_NEWTON_TOL) {
+          converged = true;
+          break;
+        }
+
+        // Finite-difference Jacobian of f at x
+        const eps = 1e-8;
+        const J: number[][] = [];
+        for (let j = 0; j < n; j++) {
+          const xPert = [...x];
+          xPert[j] += eps;
+          const fPert = model.f(t + hTry, xPert);
+          J.push(fPert.map((fp, i) => (fp - fNext[i]) / eps));
+        }
+        // J[j] is df/dx_j as column vector; build matrix M = I - h*df/dx
+        // Solve M * dx = -R via Gaussian elimination (small n)
+        const M: number[][] = [];
+        for (let i = 0; i < n; i++) {
+          const row = new Array(n).fill(0);
+          row[i] = 1;
+          for (let j = 0; j < n; j++) {
+            row[j] -= hTry * J[j][i];
+          }
+          M.push(row);
+        }
+
+        const b = R.map((r) => -r);
+        // Gaussian elimination with partial pivoting
+        for (let col = 0; col < n; col++) {
+          let pivot = col;
+          for (let r = col + 1; r < n; r++) {
+            if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
+          }
+          if (pivot !== col) {
+            [M[col], M[pivot]] = [M[pivot], M[col]];
+            [b[col], b[pivot]] = [b[pivot], b[col]];
+          }
+          const piv = M[col][col];
+          if (Math.abs(piv) < 1e-15) break;
+          for (let r = col + 1; r < n; r++) {
+            const factor = M[r][col] / piv;
+            for (let c = col; c < n; c++) M[r][c] -= factor * M[col][c];
+            b[r] -= factor * b[col];
+          }
+        }
+        const dx = new Array(n).fill(0);
+        for (let i = n - 1; i >= 0; i--) {
+          let s = b[i];
+          for (let c = i + 1; c < n; c++) s -= M[i][c] * dx[c];
+          dx[i] = M[i][i] !== 0 ? s / M[i][i] : 0;
+        }
+
+        for (let i = 0; i < n; i++) x[i] += dx[i];
+      }
+
+      if (converged) {
+        state = x;
+        t = t + hTry;
+        actualSteps++;
+        if (hTry < minStep) minStep = hTry;
+        if (hTry > maxStep) maxStep = hTry;
+        h = Math.min(dt, hTry * 1.5); // grow step tentatively
+        accepted = true;
+      } else {
+        h = hTry * 0.5;
+      }
+    }
+
+    // Snap t to exact dt grid to avoid drift
+    t = tNext;
+    time[step + 1] = t;
+
+    if (model.applyAbsoluteState) model.applyAbsoluteState(t, state);
+
+    for (let i = 0; i < n; i++) {
+      if (!isFinite(state[i])) {
+        throw new Error(
+          `Simulation diverged at t=${t.toFixed(3)}s. State variable ${i} produced ${isNaN(state[i]) ? 'NaN' : 'Infinity'}. Check parameters for instability.`
+        );
+      }
+    }
+
+    captureScopes(t, state, step + 1);
+    if (model.updatePrevOutputs) model.updatePrevOutputs(t, state);
+  }
+
+  const stats: SolverStats = {
+    acceptedSteps: actualSteps,
+    rejectedSteps: 0,
+    minStep: actualSteps > 0 ? minStep : 0,
+    maxStep: actualSteps > 0 ? maxStep : 0,
+    rhsEvals: 0,
+    wallMs: Date.now() - wallStart,
+  };
+
+  return { time, traces: {}, scopes, actualSteps, stats };
 }
