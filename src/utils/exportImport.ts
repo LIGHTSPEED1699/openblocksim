@@ -4,6 +4,7 @@ import type { Node, Edge, XYPosition } from '@xyflow/react';
 import type { BlockType, Params } from '../blocks/types';
 import { BlockCategory } from '../blocks/types';
 import type { GroupBox } from './groups';
+import { parseInnerGraph, subsystemPortCounts } from '../engine/subsystems';
 
 export type ExportedBlock = SerializedGraph['blocks'][number] & { flipped?: boolean };
 
@@ -71,6 +72,39 @@ export async function importModel(file: File): Promise<void> {
 }
 
 /**
+ * Build an RF node from a serialized block. IO is static except for
+ * variable-input blocks (Sum/Product override from params.inputCount) and
+ * Subsystems, whose outer handles are derived from their inner Inport/Outport
+ * port counts (params.subsystem). Extracted from loadModel so the subsystem
+ * editor's mini canvas reuses the same block→node mapping.
+ */
+export function nodeFromSerializedBlock(b: ExportedBlock): Node {
+  const io = TYPE_IO[b.type] ?? { inputs: 1, outputs: 1 };
+  let inputs = io.inputs;
+  let outputs = io.outputs;
+  if ((b.type === 'Sum' || b.type === 'Product') && b.params?.inputCount) {
+    const max = b.type === 'Sum' ? 8 : 4;
+    inputs = Math.max(2, Math.min(max, b.params.inputCount as number));
+  }
+  if (b.type === 'Subsystem') {
+    try {
+      const subIo = subsystemPortCounts(parseInnerGraph(b.params));
+      inputs = subIo.inputs;
+      outputs = subIo.outputs;
+    } catch {
+      inputs = 0;
+      outputs = 0;
+    }
+  }
+  return {
+    id: b.id,
+    type: categoryForType(b.type),
+    position: b.position,
+    data: { type: b.type, inputs, outputs, color: '', flipped: b.flipped === true },
+  };
+}
+
+/**
  * Load a parsed model into the diagram store, replacing the current model.
  * Used by both file import and the built-in example gallery.
  */
@@ -84,22 +118,7 @@ export function loadModel(data: ExportedModel): void {
 
   const blockIds = new Set(data.blocks.map((b) => b.id));
 
-  const nodes: Node[] = data.blocks.map((b) => {
-    const io = TYPE_IO[b.type] ?? { inputs: 1, outputs: 1 };
-    // Variable-input blocks: override inputs from saved params
-    let inputs = io.inputs;
-    if ((b.type === 'Sum' || b.type === 'Product') && b.params?.inputCount) {
-      const max = b.type === 'Sum' ? 8 : 4;
-      inputs = Math.max(2, Math.min(max, b.params.inputCount as number));
-    }
-    return {
-      id: b.id,
-      type: categoryForType(b.type),
-      position: b.position,
-      data: { type: b.type, inputs, outputs: io.outputs, color: '', flipped: (b as ExportedBlock).flipped === true },
-    };
-  });
-
+  const nodes: Node[] = data.blocks.map(nodeFromSerializedBlock);
   // Filter out phantom edges whose source or target doesn't exist in blocks
   const edges: Edge[] = data.edges
     .filter((e) => blockIds.has(e.source) && blockIds.has(e.target))

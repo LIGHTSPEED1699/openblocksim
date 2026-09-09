@@ -7,6 +7,7 @@ import { ParameterPanel } from './components/ParameterPanel';
 import { Toolbar } from './components/Toolbar';
 import { UndoRedoShortcuts } from './components/UndoRedoShortcuts';
 import { PlotArea } from './components/PlotArea';
+import { SubsystemEditor } from './components/SubsystemEditor';
 import { exportModel, importModel, loadModel } from './utils/exportImport';
 import { parsePermalinkHash, buildShareUrl, copyText } from './utils/permalink';
 import { importSimulinkModel } from './utils/simulinkImport';
@@ -39,6 +40,8 @@ export default function App() {
   const canRedo = useDiagramStore((s) => s.canRedo);
   const undo = useDiagramStore((s) => s.undo);
   const redo = useDiagramStore((s) => s.redo);
+  const editingSubsystemId = useDiagramStore((s) => s.editingSubsystemId);
+  const setEditingSubsystem = useDiagramStore((s) => s.setEditingSubsystem);
 
   const [showNewMenu, setShowNewMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
@@ -273,6 +276,9 @@ export default function App() {
         />
       </div>
       <PlotArea revision={runRevision} />
+      {editingSubsystemId && (
+        <SubsystemEditor subsystemId={editingSubsystemId} onClose={() => setEditingSubsystem(null)} />
+      )}
       <div className="flex items-center gap-2 px-4 py-1 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] text-xs">
         <div ref={newMenuRef} className="relative">
           <button

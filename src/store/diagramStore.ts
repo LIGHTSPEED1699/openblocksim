@@ -37,6 +37,8 @@ interface DiagramState {
   theme: 'dark' | 'light';
   groups: GroupBox[];
   selectedGroupId: string | null;
+  /** Subsystem editor (session-transient — excluded from persist via partialize). */
+  editingSubsystemId: string | null;
 
   /** Undo/redo history (session-transient — excluded from persist via partialize). */
   past: HistoryEntry[];
@@ -57,6 +59,7 @@ interface DiagramState {
   resizeGroup: (id: string, patch: Partial<GroupBoxRect>) => void;
   deleteGroup: (id: string) => void;
   convertGroupToSubsystem: (groupId: string) => void;
+  setEditingSubsystem: (id: string | null) => void;
   selectGroup: (id: string | null) => void;
   setSimResults: (results: SimResults | null) => void;
   setSimError: (error: string | null) => void;
@@ -134,6 +137,7 @@ export const useDiagramStore = create<DiagramState>()(
         theme: 'dark',
         groups: [],
         selectedGroupId: null,
+        editingSubsystemId: null,
         past: [],
         future: [],
         canUndo: false,
@@ -298,6 +302,7 @@ export const useDiagramStore = create<DiagramState>()(
           set((state) => ({ selectedGroupId: id, selectedBlockId: id === null ? state.selectedBlockId : null }));
           recordMutation(before, currentDoc());
         },
+        setEditingSubsystem: (id) => set({ editingSubsystemId: id }),
         setSimResults: (results) => set({ simResults: results, simError: null }),
         setSimError: (error) => set({ simError: error, simResults: null }),
         setSimConfig: (config) =>
@@ -306,7 +311,7 @@ export const useDiagramStore = create<DiagramState>()(
         clear: () =>
           set({
             nodes: [], edges: [], params: {}, selectedBlockId: null,
-            groups: [], selectedGroupId: null,
+            groups: [], selectedGroupId: null, editingSubsystemId: null,
             simResults: null, simError: null,
             past: [], future: [], canUndo: false, canRedo: false,
           }),

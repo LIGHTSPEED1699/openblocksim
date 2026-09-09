@@ -188,6 +188,7 @@ export function DiagramCanvas() {
   const [wireActive, setWireActive] = useState(false);
   const [nodeMenu, setNodeMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null);
   const flipNode = useDiagramStore((s) => s.flipNode);
+  const setEditingSubsystem = useDiagramStore((s) => s.setEditingSubsystem);
 
   // Feature H R-H2: F flips the selected node (see flipOnKeydown guards).
   useEffect(() => {
@@ -364,6 +365,11 @@ export function DiagramCanvas() {
         onNodeClick={(_, node) => {
           if (node.type === GROUP_NODE_TYPE) return;
           selectBlock(node.id);
+        }}
+        onNodeDoubleClick={(_, node) => {
+          if (node.type === 'Hierarchy' && node.data?.type === 'Subsystem') {
+            setEditingSubsystem(node.id);
+          }
         }}
         onNodeContextMenu={onNodeContextMenu}
         onNodesDelete={onNodesDelete}
