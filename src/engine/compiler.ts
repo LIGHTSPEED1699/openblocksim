@@ -2,12 +2,14 @@ import { SerializedGraph, CompiledModel, CrossingEvent } from './types';
 import { BlockRegistry } from '../blocks/registry';
 import { Block, BlockType } from '../blocks/types';
 import { resolveExpressionParams } from './paramExpr';
+import { flattenGraph } from './subsystems';
 
 export function compileGraph(
   graph: SerializedGraph,
   registry: BlockRegistry,
   dt: number
 ): CompiledModel {
+  graph = flattenGraph(graph);
   // Create block instances
   const blocks = new Map<string, Block>();
   for (const b of graph.blocks) {

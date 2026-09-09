@@ -54,6 +54,7 @@ import { Terminator } from '../blocks/sinks/Terminator';
 import { Display } from '../blocks/sinks/Display';
 import { StopSimulation } from '../blocks/sinks/StopSimulation';
 import type { WorkerMessage } from './types';
+import { flattenGraph } from './subsystems';
 
 function createRegistry(): BlockRegistry {
   const r = new BlockRegistry();
@@ -115,18 +116,18 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
   if (msg.type !== 'run') return;
 
   const registry = createRegistry();
-  const validation = validateGraph(msg.graph, registry);
-  if (!validation.valid) {
-    const errorMsg: WorkerMessage = {
-      type: 'error',
-      message: validation.errors.join('; '),
-    };
-    (self as any).postMessage(errorMsg);
-    return;
-  }
-
   try {
-    const model = compileGraph(msg.graph, registry, msg.dt);
+    const flat = flattenGraph(msg.graph);
+    const validation = validateGraph(flat, registry);
+    if (!validation.valid) {
+      const errorMsg: WorkerMessage = {
+        type: 'error',
+        message: validation.errors.join('; '),
+      };
+      (self as any).postMessage(errorMsg);
+      return;
+    }
+    const model = compileGraph(flat, registry, msg.dt);
     const solverType = msg.solverType ?? 'fixed';
     let result;
     if (solverType === 'adaptive') {
