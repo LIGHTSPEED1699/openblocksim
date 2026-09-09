@@ -52,6 +52,8 @@ interface DiagramState {
   clearHistory: () => void;
   undo: () => void;
   redo: () => void;
+  beginCoalesce: () => void;
+  endCoalesce: () => void;
 }
 
 function docToState(doc: DiagramDoc): { nodes: Node[]; edges: Edge[]; params: Record<string, Params> } {
@@ -83,10 +85,22 @@ export const useDiagramStore = create<DiagramState>()(
         return snapshotDoc(s.nodes, s.edges, s.params);
       };
 
-      const recordMutation = (before: DiagramDoc, after: DiagramDoc) => {
+      /** Coalescing window (gesture in progress). Kept in the closure: never persisted. */
+      let coalesceOpen = false;
+      let coalesceBefore: DiagramDoc | null = null;
+
+      const recordMutation = (before: DiagramDoc, after: DiagramDoc, key?: string) => {
         if (sameDoc(before, after)) return;
+        if (coalesceOpen) return; // absorbed into the open window; endCoalesce commits it
         const s = get();
-        const past = pushEntry(s.past, { before, after });
+        const top = s.past[s.past.length - 1];
+        if (key !== undefined && top && top.key === key) {
+          // Typing coalescing: extend the previous entry's "after" in place.
+          set({ past: [...s.past.slice(0, -1), { ...top, after }], future: [], canUndo: true, canRedo: false });
+          return;
+        }
+        const entry: HistoryEntry = { before, after, key };
+        const past = pushEntry(s.past, entry);
         set({ past, future: [], canUndo: past.length > 0, canRedo: false });
       };
 
@@ -141,7 +155,7 @@ export const useDiagramStore = create<DiagramState>()(
           set((state) => ({
             params: { ...state.params, [id]: { ...state.params[id], ...params } },
           }));
-          recordMutation(before, currentDoc());
+          recordMutation(before, currentDoc(), `param:${id}:${Object.keys(params).sort().join(',')}`);
         },
         selectBlock: (id) => set({ selectedBlockId: id }),
         setSimResults: (results) => set({ simResults: results, simError: null }),
@@ -156,7 +170,22 @@ export const useDiagramStore = create<DiagramState>()(
             past: [], future: [], canUndo: false, canRedo: false,
           }),
         clearHistory: () => set({ past: [], future: [], canUndo: false, canRedo: false }),
+        beginCoalesce: () => {
+          if (coalesceOpen) return;
+          coalesceOpen = true;
+          coalesceBefore = currentDoc();
+        },
+        endCoalesce: () => {
+          if (!coalesceOpen) return;
+          coalesceOpen = false;
+          const before = coalesceBefore;
+          coalesceBefore = null;
+          if (before === null) return;
+          recordMutation(before, currentDoc());
+        },
         undo: () => {
+          coalesceOpen = false;
+          coalesceBefore = null;
           const s = get();
           const entry = s.past[s.past.length - 1];
           if (!entry) return;
@@ -169,6 +198,8 @@ export const useDiagramStore = create<DiagramState>()(
           });
         },
         redo: () => {
+          coalesceOpen = false;
+          coalesceBefore = null;
           const s = get();
           const entry = s.future[s.future.length - 1];
           if (!entry) return;
