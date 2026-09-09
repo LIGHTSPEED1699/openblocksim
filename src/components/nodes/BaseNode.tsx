@@ -147,11 +147,13 @@ export function BaseNode({ id, data }: NodeProps) {
   };
   const outputLabelText = (i: number): string | null => labels.outputs[i] ?? null;
 
-  // Port sides. Normal layout: inputs left, outputs right. Task T4 flips
-  // these two constants when node.data.flipped is set — nothing else here
-  // needs to change then.
-  const inSide = 'left';
-  const outSide = 'right';
+  // Port sides. Normal layout: inputs left, outputs right. A flipped node
+  // (node.data.flipped === true, toggled by the store's flipNode) mirrors
+  // horizontally: inputs move to the right edge, outputs to the left edge.
+  // Node content stays upright — only handle + label sides swap.
+  const flipped = nodeData.flipped === true;
+  const inSide = flipped ? 'right' : 'left';
+  const outSide = flipped ? 'left' : 'right';
 
   return (
     <div
