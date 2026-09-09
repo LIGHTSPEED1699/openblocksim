@@ -1,4 +1,4 @@
-import { SerializedGraph, CompiledModel } from './types';
+import { SerializedGraph, CompiledModel, CrossingEvent } from './types';
 import { BlockRegistry } from '../blocks/registry';
 import { Block, BlockType } from '../blocks/types';
 
@@ -292,6 +292,30 @@ export function compileGraph(
     scopeInputs.set(id, (inputsFrom.get(id) ?? []).map((w) => ({ source: w.source, sourcePort: w.sourcePort })));
   }
 
+  // Collect crossing events from blocks that declare crossingSign
+  const events: CrossingEvent[] = [];
+  for (const id of order) {
+    const block = blocks.get(id)!;
+    if (block.crossingSign) {
+      const blockParams = mergedParams.get(id)!;
+      // Capture current inputs at event registration time — the sign function
+      // is a closure over the inputs snapshot. The solver re-evaluates it
+      // at each step with interpolated state. For block-level crossing signs
+      // that depend on inputs (not state), we pass the last-known inputs.
+      // The compiler provides a function that evaluates inputs at (t, state)
+      // via getOutputs.
+      events.push({
+        id,
+        sign: (t: number, state: number[]) => {
+          const outputs = getOutputs(t, state);
+          const inputs = gatherInputs(id, outputs);
+          const fn = block.crossingSign!(inputs, blockParams);
+          return fn(t, state);
+        },
+      });
+    }
+  }
+
   return {
     stateSize: stateOffset,
     f,
@@ -304,5 +328,6 @@ export function compileGraph(
     scopeInputs,
     workspaceBlockIds,
     blockOrder: order,
+    events,
   };
 }

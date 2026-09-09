@@ -8,6 +8,16 @@ export const RateLimiter = {
     category: BlockCategory.Nonlinear,
     inputs: 1, outputs: 1, isDynamic: true, stateSize: 1,
     stateUpdateMode: 'absolute' as const,
+    crossingSign: (inputs, params) => (_t, state) => {
+      const risingSlew = params.risingSlew as number;
+      const fallingSlew = params.fallingSlew as number;
+      const prevOutput = state[0];
+      const input = inputs[0];
+      // Distance to rate limit boundaries
+      const upper = prevOutput + risingSlew;
+      const lower = prevOutput + fallingSlew;
+      return Math.max(lower - input, input - upper);
+    },
     parameters: {
       risingSlew: { type: 'number', default: 1, label: 'Rising Slew Rate (units/s)' },
       fallingSlew: { type: 'number', default: -1, label: 'Falling Slew Rate (units/s)' },

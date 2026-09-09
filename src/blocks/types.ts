@@ -82,6 +82,7 @@ export interface Block {
   stateSize: number;
   stateUpdateMode: 'derivative' | 'absolute';
   parameters: ParamSpec;
+  crossingSign?: (inputs: number[], params: Params) => (t: number, state: number[]) => number;
   compute(
     dt: number,
     inputs: number[],

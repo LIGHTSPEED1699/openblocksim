@@ -8,6 +8,7 @@ export const Switch = {
     category: BlockCategory.Routing,
     inputs: 3, outputs: 1, isDynamic: false, stateSize: 0,
     stateUpdateMode: 'absolute' as const,
+    crossingSign: (inputs, params) => (_t, _s) => inputs[1] - (params.threshold as number),
     parameters: {
       threshold: { type: 'number', default: 0, label: 'Threshold' },
       condition: { type: 'select', default: 'u2>=threshold', label: 'Condition', description: 'u2 is the control input (input 2)' },

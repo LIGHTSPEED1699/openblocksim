@@ -8,6 +8,7 @@ export const Relay = {
     category: BlockCategory.Control,
     inputs: 1, outputs: 1, isDynamic: true, stateSize: 1,
     stateUpdateMode: 'absolute' as const,
+    crossingSign: (inputs, params) => (_t, _s) => inputs[0] - (params.switchOn as number),
     parameters: {
       onValue: { type: 'number', default: 1, label: 'On Value' },
       offValue: { type: 'number', default: -1, label: 'Off Value' },
