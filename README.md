@@ -4,7 +4,7 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 
 ## Features
 
-- **45+ block types** across 9 categories: Sources, Sinks, Math, Linear, Discrete, Nonlinear, Control, Routing, Annotation
+- **50 block types** across 9 categories — Sources, Sinks, Math, Linear, Discrete, Nonlinear, Control, Routing, Annotation — auto-discovered from declarative block metadata (math icons + doc tooltips)
 - **Custom RK4 solver** with NaN/Infinity detection and step limits
 - **Graph compiler** with topological sort, state assignment, and ODE generation
 - **Algebraic loop detection** via DFS-based cycle detection
