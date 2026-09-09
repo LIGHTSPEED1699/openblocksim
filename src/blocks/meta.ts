@@ -100,3 +100,8 @@ const meta: Record<BlockType, BlockMetaEntry> = {
 export function getBlockMeta(type: BlockType): BlockMetaEntry {
   return meta[type];
 }
+
+/** All block types in meta-declaration order (palette group order). */
+export function listBlockTypes(): BlockType[] {
+  return Object.keys(meta) as BlockType[];
+}
