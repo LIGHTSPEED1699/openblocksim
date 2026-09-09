@@ -1,4 +1,6 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { InlineMath } from 'react-katex';
+import 'katex/dist/katex.min.css';
 import { useDiagramStore } from '../../store/diagramStore';
 
 interface BaseNodeData {
@@ -39,38 +41,27 @@ const ICONS: Record<string, string> = {
   Comment: '📝',
 };
 
-// Build a readable G(s) string from numerator/denominator coefficients.
-// e.g. [1] / [1, 1] → "1/(s+1)", [2] / [1, 0.4, 1] → "2/(s²+0.4s+1)"
-function polyString(coeffs: number[]): string {
+// Build a LaTeX polynomial from descending-degree coefficients, e.g.
+// [1] / [1, 1] in s → "1 / (s+1)". Used for KaTeX math faces.
+function polyTex(coeffs: number[], variable: 's' | 'z'): string {
   const n = coeffs.length;
-  if (n === 1) return formatCoeff(coeffs[0]);
   const terms: string[] = [];
   for (let i = 0; i < n; i++) {
     const c = coeffs[i];
     if (c === 0) continue;
     const power = n - 1 - i;
-    const coeffStr = c === 1 && power > 0 ? '' : c === -1 && power > 0 ? '-' : formatCoeff(c);
-    const varStr = power === 0 ? '' : power === 1 ? 's' : `s${superscript(power)}`;
-    terms.push(coeffStr + varStr);
+    const abs = Math.abs(c);
+    const coeffStr = abs === 1 && power > 0 ? '' : formatCoeff(abs);
+    const varStr = power === 0 ? '' : power === 1 ? variable : `${variable}^{${power}}`;
+    terms.push(`${c < 0 ? '-' : '+'}${coeffStr}${varStr}`);
   }
-  return terms.join('+').replace('+-', '-');
+  let s = terms.join('');
+  if (s.startsWith('+')) s = s.slice(1);
+  return s || '0';
 }
 
 function formatCoeff(c: number): string {
-  return Number.isInteger(c) ? String(c) : c.toFixed(2).replace(/\.?0+$/, '');
-}
-
-function superscript(n: number): string {
-  const map: Record<number, string> = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
-  return String(n).split('').map(d => map[+d] ?? d).join('');
-}
-
-function tfToString(num: number[], den: number[]): string {
-  const numStr = polyString(num);
-  const denStr = polyString(den);
-  // Short form: if denominator is just a constant, show num/den directly
-  if (den.length === 1) return `${numStr}/${denStr}`;
-  return `${numStr}/(${denStr})`;
+  return Number.isInteger(c) ? String(c) : String(parseFloat(c.toFixed(3)));
 }
 
 export function BaseNode({ id, data }: NodeProps) {
@@ -81,12 +72,21 @@ export function BaseNode({ id, data }: NodeProps) {
 
   let icon = ICONS[nodeData.type] ?? nodeData.type;
 
-  // TransferFunction: show actual formula from num/den params
-  if (nodeData.type === 'TransferFunction' && params) {
-    const num = params.num as number[] | undefined;
-    const den = params.den as number[] | undefined;
+  // Math faces: render these block types with KaTeX; all others keep Unicode glyphs.
+  let mathTex: string | null = null;
+  if (nodeData.type === 'Integrator') {
+    mathTex = '\\frac{1}{s}';
+  } else if (nodeData.type === 'Derivative') {
+    mathTex = 's';
+  } else if (nodeData.type === 'StateSpace') {
+    mathTex = '\\dot{x}=Ax+Bu';
+  } else if (nodeData.type === 'TransferFunction' || nodeData.type === 'DiscreteTransferFcn') {
+    const variable = nodeData.type === 'TransferFunction' ? 's' : 'z';
+    const denFallback = nodeData.type === 'TransferFunction' ? [1, 1] : [1, -0.5];
+    const num = (params?.num as number[] | undefined) ?? [1];
+    const den = (params?.den as number[] | undefined) ?? denFallback;
     if (num && den) {
-      icon = tfToString(num, den);
+      mathTex = `\\frac{${polyTex(num, variable)}}{${polyTex(den, variable)}}`;
     }
   }
 
@@ -140,9 +140,17 @@ export function BaseNode({ id, data }: NodeProps) {
     >
       {/* Thin left accent stripe for category */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l ${nodeData.color}`} />
-      <span className={`select-none ${isComment ? 'text-[10px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words max-w-[240px] text-left leading-relaxed' : nodeData.type === 'TransferFunction' && params?.num ? 'text-[10px] font-mono' : 'text-sm font-medium'} text-slate-800 dark:text-slate-100`}>
+      <span className={`select-none ${
+        isComment
+          ? 'text-[10px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words max-w-[240px] text-left leading-relaxed'
+          : mathTex
+            ? (nodeData.type === 'TransferFunction' || nodeData.type === 'DiscreteTransferFcn') ? 'text-[10px]' : 'text-base leading-none'
+            : 'text-sm font-medium'
+      } text-slate-800 dark:text-slate-100`}>
         {isImageBlock ? (
           <img src={imgIcon} alt={nodeData.type} className="w-5 h-5 inline-block" />
+        ) : mathTex ? (
+          <InlineMath math={mathTex} />
         ) : (
           icon
         )}

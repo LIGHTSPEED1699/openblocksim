@@ -2,18 +2,23 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Node, Edge } from '@xyflow/react';
 import { BlockType, Params } from '../blocks/types';
+import type { SolverStats } from '../engine/types';
 
 interface SimConfig {
   dt: number;
   duration: number;
-  solverType?: 'fixed' | 'adaptive';
+  solverType?: 'fixed' | 'adaptive' | 'bdf';
   rtol?: number;
   atol?: number;
+  maxStep?: number;
 }
 
 interface SimResults {
   time: number[];
   scopes: Record<string, number[]>;
+  stats?: SolverStats;
+  actualSteps?: number;
+  crossingTimes?: number[];
 }
 
 interface DiagramState {

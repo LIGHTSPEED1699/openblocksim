@@ -1,4 +1,4 @@
-import { SerializedGraph, CompiledModel } from './types';
+import { SerializedGraph, CompiledModel, CrossingEvent } from './types';
 import { BlockRegistry } from '../blocks/registry';
 import { Block, BlockType } from '../blocks/types';
 
@@ -102,6 +102,49 @@ export function compileGraph(
     }
   }
 
+  // Classify feedback cycles as algebraic or dynamic.
+  // For each feedback edge (source → target), walk the cycle from target back
+  // to source through non-feedback edges. If no block in the cycle is dynamic
+  // (stateUpdateMode derivative/absolute), the loop is algebraic.
+  const algebraicLoops: string[][] = [];
+  const dynamicLoops: string[][] = [];
+  // Build adjacency excluding feedback edges for cycle walking
+  const cycleAdj = new Map<string, string[]>();
+  for (const b of graph.blocks) cycleAdj.set(b.id, []);
+  for (const e of validEdges) {
+    if (!feedbackEdges.has(e.id)) cycleAdj.get(e.source)?.push(e.target);
+  }
+
+  for (const feId of feedbackEdges) {
+    const fe = validEdges.find((e) => e.id === feId);
+    if (!fe) continue;
+    const cycleStart = fe.target; // cycle: target → ... → source → target
+    const cycleEnd = fe.source;
+    // DFS from cycleStart to cycleEnd through non-feedback edges
+    const visited = new Set<string>();
+    let found: string[] | null = null;
+    function dfsCycle(node: string, path: string[]): boolean {
+      if (node === cycleEnd) {
+        found = [...path, node];
+        return true;
+      }
+      if (visited.has(node)) return false;
+      visited.add(node);
+      for (const next of cycleAdj.get(node) ?? []) {
+        if (dfsCycle(next, [...path, node])) return true;
+      }
+      return false;
+    }
+    dfsCycle(cycleStart, []);
+    if (!found) found = [cycleStart, cycleEnd];
+    const hasDynamic = found.some((id) => blocks.get(id)?.isDynamic);
+    if (hasDynamic) {
+      dynamicLoops.push(found);
+    } else {
+      algebraicLoops.push(found);
+    }
+  }
+
   // Merge block parameter defaults with graph params.
   // Blocks dropped on canvas get params={} (factory create() ignores the
   // argument). Without this merge, compute() receives undefined for every
@@ -168,9 +211,21 @@ export function compileGraph(
 
   // Build feedback edge lookup: "targetId:targetPort" → is feedback?
   const feedbackEdgeLookup = new Set<string>();
+  // Algebraic-loop feedback edges: these read from current-iteration outputs
+  // (fixed-point iteration) instead of prevOutputs (one-step delay).
+  const algebraicFeedbackLookup = new Set<string>();
   for (const e of validEdges) {
     if (feedbackEdges.has(e.id)) {
       feedbackEdgeLookup.add(`${e.target}:${e.targetPort}`);
+    }
+  }
+  // Mark feedback edges that belong to algebraic loops
+  for (const cycle of algebraicLoops) {
+    const cycleSet = new Set(cycle);
+    for (const e of validEdges) {
+      if (feedbackEdges.has(e.id) && cycleSet.has(e.source) && cycleSet.has(e.target)) {
+        algebraicFeedbackLookup.add(`${e.target}:${e.targetPort}`);
+      }
     }
   }
 
@@ -185,10 +240,14 @@ export function compileGraph(
     for (let port = 0; port < block.inputs; port++) {
       const wire = inputWires.find((w) => w.targetPort === port);
       if (wire) {
-        // Use previous-step output for feedback edges (one-step delay)
         const isFeedback = feedbackEdgeLookup.has(`${id}:${port}`);
+        const isAlgebraic = algebraicFeedbackLookup.has(`${id}:${port}`);
+        // Algebraic-loop feedback: read current-iteration output (fixed-point)
+        // Dynamic-loop feedback: read previous-step output (one-step delay)
         const sourceOutputs = isFeedback
-          ? (prevOutputs.get(wire.source) ?? [0])
+          ? (isAlgebraic
+              ? (outputs.get(wire.source) ?? prevOutputs.get(wire.source) ?? [0])
+              : (prevOutputs.get(wire.source) ?? [0]))
           : (outputs.get(wire.source) ?? []);
         inputValues.push(sourceOutputs[wire.sourcePort] ?? 0);
       } else {
@@ -286,10 +345,86 @@ export function compileGraph(
     prevOutputs = getOutputs(t, state);
   };
 
+  // algebraicLoopSolver — iterates algebraic loop outputs to a fixed point.
+  // Called by the solver before each step so that algebraic-loop feedback
+  // edges see converged current-step values instead of one-step-delayed ones.
+  // Gauss-Seidel: each getOutputs call walks the block order; algebraic
+  // feedback edges read current-iteration outputs, so repeated calls converge.
+  const algebraicLoopSolver = algebraicLoops.length > 0
+    ? (t: number, state: number[]): void => {
+        const maxIter = 50;
+        const tol = 1e-9;
+        let prev = getOutputs(t, state);
+        for (let iter = 0; iter < maxIter; iter++) {
+          // Update prevOutputs so the next getOutputs call reads this iteration's outputs
+          prevOutputs = prev;
+          const next = getOutputs(t, state);
+          let maxDiff = 0;
+          for (const [id, vals] of next) {
+            const pv = prev.get(id) ?? [];
+            for (let i = 0; i < vals.length; i++) {
+              maxDiff = Math.max(maxDiff, Math.abs((vals[i] ?? 0) - (pv[i] ?? 0)));
+            }
+          }
+          prev = next;
+          if (maxDiff < tol) break;
+        }
+        prevOutputs = prev;
+      }
+    : undefined;
+
   // Map scope block IDs to their input wires (source + sourcePort)
   const scopeInputs = new Map<string, { source: string; sourcePort: number }[]>();
   for (const id of scopeBlockIds) {
     scopeInputs.set(id, (inputsFrom.get(id) ?? []).map((w) => ({ source: w.source, sourcePort: w.sourcePort })));
+  }
+
+  // Collect crossing events from blocks that declare crossingSign
+  const events: CrossingEvent[] = [];
+  for (const id of order) {
+    const block = blocks.get(id)!;
+    if (block.crossingSign) {
+      const blockParams = mergedParams.get(id)!;
+      // Capture current inputs at event registration time — the sign function
+      // is a closure over the inputs snapshot. The solver re-evaluates it
+      // at each step with interpolated state. For block-level crossing signs
+      // that depend on inputs (not state), we pass the last-known inputs.
+      // The compiler provides a function that evaluates inputs at (t, state)
+      // via getOutputs.
+      events.push({
+        id,
+        sign: (t: number, state: number[]) => {
+          const outputs = getOutputs(t, state);
+          const inputs = gatherInputs(id, outputs);
+          const fn = block.crossingSign!(inputs, blockParams);
+          return fn(t, state);
+        },
+      });
+    }
+  }
+
+  // Collect periodic sample-time events for discrete blocks that declare a
+  // sampleTime > 0 (ZOH semantics). Their zero-crossings sit exactly on the
+  // sample boundaries so the adaptive solver records them (and caps its step
+  // at dt), mirroring how Relay/Saturation register discontinuity events.
+  const SAMPLE_BLOCK_TYPES = new Set([
+    BlockType.UnitDelay,
+    BlockType.DiscreteIntegrator,
+    BlockType.DiscreteTransferFcn,
+    BlockType.Memory,
+  ]);
+  for (const id of order) {
+    const block = blocks.get(id)!;
+    if (!SAMPLE_BLOCK_TYPES.has(block.type)) continue;
+    const blockParams = mergedParams.get(id)!;
+    const Ts = blockParams.sampleTime as number | undefined;
+    if (typeof Ts === 'number' && Ts > 0) {
+      events.push({
+        id,
+        // sin(pi t/Ts) changes sign exactly at t = k*Ts (sample boundaries)
+        sign: (t: number) => Math.sin((Math.PI * t) / Ts),
+      });
+    }
   }
 
   return {
@@ -304,5 +439,9 @@ export function compileGraph(
     scopeInputs,
     workspaceBlockIds,
     blockOrder: order,
+    events,
+    algebraicLoops,
+    dynamicLoops,
+    algebraicLoopSolver,
   };
 }

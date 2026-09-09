@@ -35,17 +35,13 @@ describe('Adaptive RK4(5) solver', () => {
     expect(result.actualSteps).toBeLessThan(100);
   });
 
-  it('produces non-uniform time points', () => {
-    // dx/dt = -5x: fast enough that h=0.1 produces visible error at rtol=1e-6
-    // The solver will take small steps near t=0 (fast transient) and grow
+  it('takes variable internal step sizes (visible in stats)', () => {
+    // dx/dt = -5x: fast transient near t=0 — solver takes small then large steps
     const model = makeSimpleModel((_t, state) => [-5 * state[0]]);
     const result = solveAdaptive(model, { dt: 0.1, duration: 5, rtol: 1e-6, atol: 1e-9 }, [1]);
-    const intervals: number[] = [];
-    for (let i = 1; i < result.time.length; i++) {
-      intervals.push(result.time[i] - result.time[i - 1]);
-    }
-    const allSame = intervals.every((v) => Math.abs(v - intervals[0]) < 1e-10);
-    expect(allSame).toBe(false);
+    // Output grid is uniform (dt), but internal steps vary: minStep != maxStep
+    expect(result.stats).toBeDefined();
+    expect(result.stats!.minStep).toBeLessThan(result.stats!.maxStep);
   });
 
   it('takes fewer steps than fixed-step equivalent for smooth system', () => {

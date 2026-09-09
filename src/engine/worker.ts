@@ -1,6 +1,6 @@
 import { validateGraph } from './validate';
 import { compileGraph } from './compiler';
-import { solve, solveAdaptive } from './solver';
+import { solve, solveAdaptive, solveBDF } from './solver';
 import { BlockRegistry } from '../blocks/registry';
 import { BlockType } from '../blocks/types';
 import { Constant } from '../blocks/sources/Constant';
@@ -32,7 +32,12 @@ import { MinMax } from '../blocks/math/MinMax';
 import { RoundingFunction } from '../blocks/math/RoundingFunction';
 import { MathFunction } from '../blocks/math/MathFunction';
 import { TrigFunction } from '../blocks/math/TrigFunction';
+import { Interpolate } from '../blocks/math/Interpolate';
+import { Pow } from '../blocks/math/Pow';
+import { Clip } from '../blocks/math/Clip';
 import { Switch } from '../blocks/routing/Switch';
+import { Mux } from '../blocks/routing/Mux';
+import { Demux } from '../blocks/routing/Demux';
 import { UnitDelay } from '../blocks/discrete/UnitDelay';
 import { DiscreteIntegrator } from '../blocks/discrete/DiscreteIntegrator';
 import { DiscreteTransferFcn } from '../blocks/discrete/DiscreteTransferFcn';
@@ -81,7 +86,12 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.RoundingFunction, RoundingFunction);
   r.register(BlockType.MathFunction, MathFunction);
   r.register(BlockType.TrigFunction, TrigFunction);
+  r.register(BlockType.Interpolate, Interpolate);
+  r.register(BlockType.Pow, Pow);
+  r.register(BlockType.Clip, Clip);
   r.register(BlockType.Switch, Switch);
+  r.register(BlockType.Mux, Mux);
+  r.register(BlockType.Demux, Demux);
   r.register(BlockType.UnitDelay, UnitDelay);
   r.register(BlockType.DiscreteIntegrator, DiscreteIntegrator);
   r.register(BlockType.DiscreteTransferFcn, DiscreteTransferFcn);
@@ -122,7 +132,9 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
     if (solverType === 'adaptive') {
       const rtol = msg.rtol ?? 1e-4;
       const atol = msg.atol ?? 1e-6;
-      result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol }, new Array(model.stateSize).fill(0));
+      result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol, maxStep: msg.maxStep }, new Array(model.stateSize).fill(0));
+    } else if (solverType === 'bdf') {
+      result = solveBDF(model, { dt: msg.dt, duration: msg.duration, solverType: 'bdf', rtol: msg.rtol, atol: msg.atol }, new Array(model.stateSize).fill(0));
     } else {
       result = solve(model, { dt: msg.dt, duration: msg.duration }, new Array(model.stateSize).fill(0));
     }

@@ -8,6 +8,13 @@ export const Quantizer = {
     category: BlockCategory.Nonlinear,
     inputs: 1, outputs: 1, isDynamic: false, stateSize: 0,
     stateUpdateMode: 'absolute' as const,
+    crossingSign: (inputs, params) => (_t, _s) => {
+      const quantum = params.quantum as number;
+      const val = inputs[0];
+      // Distance to nearest quantization boundary
+      const nearest = Math.round(val / quantum) * quantum;
+      return val - nearest;
+    },
     parameters: {
       quantum: { type: 'number', default: 0.5, min: 0, step: 0.1, label: 'Quantization Interval' },
     },

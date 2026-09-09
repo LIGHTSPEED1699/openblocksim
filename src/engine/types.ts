@@ -23,9 +23,10 @@ export interface SerializedGraph {
 export interface SimConfig {
   dt: number;
   duration: number;
-  solverType?: 'fixed' | 'adaptive';
+  solverType?: 'fixed' | 'adaptive' | 'bdf';
   rtol?: number;
   atol?: number;
+  maxStep?: number;
 }
 
 export interface SimResult {
@@ -33,6 +34,22 @@ export interface SimResult {
   traces: Record<string, number[]>; // blockId → output values over time
   scopes: Record<string, number[]>; // scopeBlockId → input values over time
   actualSteps?: number;
+  crossingTimes?: number[];
+  stats?: SolverStats;
+}
+
+export interface SolverStats {
+  acceptedSteps: number;
+  rejectedSteps: number;
+  minStep: number;
+  maxStep: number;
+  rhsEvals: number;
+  wallMs: number;
+}
+
+export interface CrossingEvent {
+  id: string;
+  sign: (t: number, state: number[]) => number;
 }
 
 export interface CompiledModel {
@@ -47,10 +64,14 @@ export interface CompiledModel {
   updatePrevOutputs: (t: number, state: number[]) => void; // snapshot outputs for next step's feedback edges
   absoluteBlockIds: Set<string>; // blocks using absolute state updates (TransportDelay, Relay)
   applyAbsoluteState: (t: number, state: number[]) => void; // apply absolute state updates in-place
+  events?: CrossingEvent[];
+  algebraicLoops?: string[][];
+  dynamicLoops?: string[][];
+  algebraicLoopSolver?: (t: number, state: number[]) => void;
 }
 
 export type WorkerMessage =
-  | { type: 'run'; graph: SerializedGraph; dt: number; duration: number; solverType?: 'fixed' | 'adaptive'; rtol?: number; atol?: number }
+  | { type: 'run'; graph: SerializedGraph; dt: number; duration: number; solverType?: 'fixed' | 'adaptive' | 'bdf'; rtol?: number; atol?: number; maxStep?: number }
   | { type: 'cancel' }
   | { type: 'progress'; percent: number }
   | { type: 'done'; results: SimResult }

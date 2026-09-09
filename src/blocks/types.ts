@@ -28,6 +28,11 @@ export enum BlockType {
   RoundingFunction = 'RoundingFunction',
   MathFunction = 'MathFunction',
   TrigFunction = 'TrigFunction',
+  Interpolate = 'Interpolate',
+  Pow = 'Pow',
+  Clip = 'Clip',
+  Mux = 'Mux',
+  Demux = 'Demux',
   Switch = 'Switch',
   UnitDelay = 'UnitDelay',
   DiscreteIntegrator = 'DiscreteIntegrator',
@@ -78,10 +83,12 @@ export interface Block {
   category: BlockCategory;
   inputs: number;
   outputs: number;
+  outputSize?: number;
   isDynamic: boolean;
   stateSize: number;
   stateUpdateMode: 'derivative' | 'absolute';
   parameters: ParamSpec;
+  crossingSign?: (inputs: number[], params: Params) => (t: number, state: number[]) => number;
   compute(
     dt: number,
     inputs: number[],
@@ -94,4 +101,14 @@ export interface Block {
 export interface BlockFactory {
   category: BlockCategory;
   create: (params?: Params) => Block;
+}
+
+export interface BlockMetaEntry {
+  type: BlockType;
+  category: string;
+  math?: string;
+  doc?: string;
+  portLabels?: string[];
+  paramSpec?: ParamSpec;
+  eventG?: (t: number, state: number[], params: Params) => number[];
 }

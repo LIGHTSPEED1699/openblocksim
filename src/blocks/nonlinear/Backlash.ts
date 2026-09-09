@@ -8,6 +8,12 @@ export const Backlash = {
     category: BlockCategory.Nonlinear,
     inputs: 1, outputs: 1, isDynamic: true, stateSize: 2,
     stateUpdateMode: 'absolute' as const,
+    crossingSign: (inputs, _params) => (_t, state) => {
+      const prevOutput = state[0];
+      const input = inputs[0];
+      // Crossing when input-output gap changes direction
+      return input - prevOutput;
+    },
     parameters: {
       deadbandWidth: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Deadband Width' },
     },

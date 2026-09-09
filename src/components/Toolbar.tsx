@@ -9,15 +9,17 @@ interface Props {
   onToggleTheme: () => void;
   isRunning?: boolean;
   runStatus?: string | null;
-  solverType?: 'fixed' | 'adaptive';
-  onSolverTypeChange?: (type: 'fixed' | 'adaptive') => void;
+  solverType?: 'fixed' | 'adaptive' | 'bdf';
+  onSolverTypeChange?: (type: 'fixed' | 'adaptive' | 'bdf') => void;
   rtol?: number;
   atol?: number;
   onRtolChange?: (rtol: number) => void;
   onAtolChange?: (atol: number) => void;
+  onExportSvg?: () => void;
+  onExportPng?: () => void;
 }
 
-export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationChange, theme, onToggleTheme, isRunning, runStatus, solverType = 'fixed', onSolverTypeChange, rtol = 1e-4, atol = 1e-6, onRtolChange, onAtolChange }: Props) {
+export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationChange, theme, onToggleTheme, isRunning, runStatus, solverType = 'fixed', onSolverTypeChange, rtol = 1e-4, atol = 1e-6, onRtolChange, onAtolChange, onExportSvg, onExportPng }: Props) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
       <button
@@ -46,11 +48,12 @@ export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationCh
         <label className="text-xs text-[var(--text-secondary)]">Solver:</label>
         <select
           value={solverType}
-          onChange={(e) => onSolverTypeChange?.(e.target.value as 'fixed' | 'adaptive')}
+          onChange={(e) => onSolverTypeChange?.(e.target.value as 'fixed' | 'adaptive' | 'bdf')}
           className="bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
         >
           <option value="fixed">RK4 (Fixed)</option>
           <option value="adaptive">RK4(5) (Adaptive)</option>
+          <option value="bdf">BDF (Stiff)</option>
         </select>
       </div>
       <div className="flex items-center gap-1">
@@ -102,6 +105,27 @@ export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationCh
         />
       </div>
       <div className="flex-1" />
+      {(onExportSvg || onExportPng) && (
+        <div className="flex items-center gap-1">
+          <label className="text-xs text-[var(--text-secondary)]">Export:</label>
+          {onExportSvg && (
+            <button
+              onClick={onExportSvg}
+              className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm hover:opacity-80"
+            >
+              SVG
+            </button>
+          )}
+          {onExportPng && (
+            <button
+              onClick={onExportPng}
+              className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm hover:opacity-80"
+            >
+              PNG
+            </button>
+          )}
+        </div>
+      )}
       <button
         onClick={onToggleTheme}
         className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm"
