@@ -57,6 +57,7 @@ import { MinMax } from '../blocks/math/MinMax';
 import { RoundingFunction } from '../blocks/math/RoundingFunction';
 import { MathFunction } from '../blocks/math/MathFunction';
 import { TrigFunction } from '../blocks/math/TrigFunction';
+import { Interpolate } from '../blocks/math/Interpolate';
 import { Switch } from '../blocks/routing/Switch';
 import { UnitDelay } from '../blocks/discrete/UnitDelay';
 import { DiscreteIntegrator } from '../blocks/discrete/DiscreteIntegrator';
@@ -107,6 +108,7 @@ const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.RoundingFunction]: RoundingFunction,
   [BlockType.MathFunction]: MathFunction,
   [BlockType.TrigFunction]: TrigFunction,
+  [BlockType.Interpolate]: Interpolate,
   [BlockType.Switch]: Switch,
   [BlockType.UnitDelay]: UnitDelay,
   [BlockType.DiscreteIntegrator]: DiscreteIntegrator,

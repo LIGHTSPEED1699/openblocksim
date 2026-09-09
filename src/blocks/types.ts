@@ -28,6 +28,7 @@ export enum BlockType {
   RoundingFunction = 'RoundingFunction',
   MathFunction = 'MathFunction',
   TrigFunction = 'TrigFunction',
+  Interpolate = 'Interpolate',
   Switch = 'Switch',
   UnitDelay = 'UnitDelay',
   DiscreteIntegrator = 'DiscreteIntegrator',

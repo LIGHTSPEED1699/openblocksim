@@ -35,6 +35,7 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.RoundingFunction]: '⌊⌉',
   [BlockType.MathFunction]: 'f(x)',
   [BlockType.TrigFunction]: 'sin',
+  [BlockType.Interpolate]: 'LUT',
   [BlockType.RateLimiter]: '⇄',
   [BlockType.Quantizer]: 'Q',
   [BlockType.Backlash]: '⊣',
@@ -52,7 +53,7 @@ const ICONS: Record<BlockType, string> = {
 const BLOCK_GROUPS: { label: string; accent: string; blocks: BlockType[] }[] = [
   { label: 'Sources', accent: 'border-l-green-500', blocks: [BlockType.Constant, BlockType.Step, BlockType.Ramp, BlockType.Sine, BlockType.Square, BlockType.PulseGenerator, BlockType.Clock, BlockType.ChirpSignal, BlockType.RepeatingSequence, BlockType.RandomNumber] },
   { label: 'Sinks', accent: 'border-l-blue-500', blocks: [BlockType.Scope, BlockType.ToWorkspace, BlockType.Terminator, BlockType.Display, BlockType.StopSimulation] },
-  { label: 'Math', accent: 'border-l-orange-500', blocks: [BlockType.Sum, BlockType.Gain, BlockType.Product, BlockType.Abs, BlockType.Sign, BlockType.Bias, BlockType.UnaryMinus, BlockType.Divide, BlockType.MinMax, BlockType.RoundingFunction, BlockType.MathFunction, BlockType.TrigFunction] },
+  { label: 'Math', accent: 'border-l-orange-500', blocks: [BlockType.Sum, BlockType.Gain, BlockType.Product, BlockType.Abs, BlockType.Sign, BlockType.Bias, BlockType.UnaryMinus, BlockType.Divide, BlockType.MinMax, BlockType.RoundingFunction, BlockType.MathFunction, BlockType.TrigFunction, BlockType.Interpolate] },
   { label: 'Linear', accent: 'border-l-purple-500', blocks: [BlockType.TransferFunction, BlockType.StateSpace, BlockType.Integrator, BlockType.Derivative, BlockType.TransportDelay] },
   { label: 'Discrete', accent: 'border-l-indigo-500', blocks: [BlockType.UnitDelay, BlockType.DiscreteIntegrator, BlockType.DiscreteTransferFcn, BlockType.Memory] },
   { label: 'Nonlinear', accent: 'border-l-red-500', blocks: [BlockType.Saturation, BlockType.Deadzone, BlockType.RateLimiter, BlockType.Quantizer, BlockType.Backlash] },

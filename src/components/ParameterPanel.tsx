@@ -90,6 +90,11 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
   [BlockType.TrigFunction]: {
     mode: { type: 'select', default: 'sin', label: 'Function' },
   },
+  [BlockType.Interpolate]: {
+    breakpoints: { type: 'array', default: [0, 1, 2], label: 'Breakpoints (1st dim)' },
+    breakpoints2: { type: 'array', default: [], label: 'Breakpoints (2nd dim, empty = 1D)' },
+    table: { type: 'array', default: [0, 10, 20], label: 'Table values' },
+  },
   [BlockType.Switch]: {
     threshold: { type: 'number', default: 0, label: 'Threshold' },
     condition: { type: 'select', default: 'u2>=threshold', label: 'Condition' },

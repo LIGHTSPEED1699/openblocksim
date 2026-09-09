@@ -32,6 +32,7 @@ import { MinMax } from '../blocks/math/MinMax';
 import { RoundingFunction } from '../blocks/math/RoundingFunction';
 import { MathFunction } from '../blocks/math/MathFunction';
 import { TrigFunction } from '../blocks/math/TrigFunction';
+import { Interpolate } from '../blocks/math/Interpolate';
 import { Switch } from '../blocks/routing/Switch';
 import { UnitDelay } from '../blocks/discrete/UnitDelay';
 import { DiscreteIntegrator } from '../blocks/discrete/DiscreteIntegrator';
@@ -81,6 +82,7 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.RoundingFunction, RoundingFunction);
   r.register(BlockType.MathFunction, MathFunction);
   r.register(BlockType.TrigFunction, TrigFunction);
+  r.register(BlockType.Interpolate, Interpolate);
   r.register(BlockType.Switch, Switch);
   r.register(BlockType.UnitDelay, UnitDelay);
   r.register(BlockType.DiscreteIntegrator, DiscreteIntegrator);
