@@ -20,6 +20,7 @@ import { flipOnKeydown } from '../utils/nodeKeyboard';
 import { BlockType, BlockCategory, type BlockFactory, type Params } from '../blocks/types';
 import { GroupBoxNode, GROUP_NODE_TYPE } from './nodes/GroupBoxNode';
 import { partitionNodeChanges } from '../utils/groupNodeChanges';
+import { NodeContextMenu } from './NodeContextMenu';
 import { StraightEdge } from './edges/StraightEdge';
 import { ConnectionPreview } from './ConnectionPreview';
 import { WireOverlay } from './WireOverlay';
@@ -175,6 +176,8 @@ export function DiagramCanvas() {
   const selectGroup = useDiagramStore((s) => s.selectGroup);
   const { screenToFlowPosition, getNode } = useReactFlow();
   const [wireActive, setWireActive] = useState(false);
+  const [nodeMenu, setNodeMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null);
+  const flipNode = useDiagramStore((s) => s.flipNode);
 
   // Feature H R-H2: F flips the selected node (see flipOnKeydown guards).
   useEffect(() => {
@@ -320,6 +323,23 @@ export function DiagramCanvas() {
     []
   );
 
+  // Feature H R-H2: right-click a node → Flip context menu.
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      selectBlock(node.id);
+      setNodeMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
+    },
+    [selectBlock],
+  );
+
+  const handleMenuFlip = useCallback(
+    (nodeId: string) => {
+      flipNode(nodeId);
+    },
+    [flipNode],
+  );
+
   return (
     <div className="flex-1 h-full" onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
       <ReactFlow
@@ -335,6 +355,7 @@ export function DiagramCanvas() {
           if (node.type === GROUP_NODE_TYPE) return;
           selectBlock(node.id);
         }}
+        onNodeContextMenu={onNodeContextMenu}
         onNodesDelete={onNodesDelete}
         onNodeDragStart={handleDragBegin}
         onNodeDragStop={handleDragEnd}
@@ -356,6 +377,16 @@ export function DiagramCanvas() {
         <Controls />
       </ReactFlow>
       {wireActive && <WireOverlay onComplete={handleWireComplete} onCancel={handleWireCancel} />}
+      {nodeMenu && (
+        <NodeContextMenu
+          x={nodeMenu.x}
+          y={nodeMenu.y}
+          nodeId={nodeMenu.nodeId}
+          nodeType={(nodes.find((n) => n.id === nodeMenu.nodeId)?.data as { type?: string } | undefined)?.type ?? ''}
+          onFlip={handleMenuFlip}
+          onClose={() => setNodeMenu(null)}
+        />
+      )}
     </div>
   );
 }
