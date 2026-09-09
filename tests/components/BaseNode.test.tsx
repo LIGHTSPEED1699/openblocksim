@@ -113,4 +113,86 @@ describe('BaseNode', () => {
     const stripe = container.querySelector('.bg-green-500');
     expect(stripe).toBeTruthy();
   });
+
+  it('renders semantic port labels from BlockMeta (Gain: u in, y out)', () => {
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: 'bg-orange-500' },
+    })));
+    expect(getByTestId('port-in-0').textContent).toBe('u');
+    expect(getByTestId('port-out-0').textContent).toBe('y');
+  });
+
+  it('renders PID labels e/PV from BlockMeta, not hardcoding', () => {
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'PID', inputs: 2, outputs: 1, color: 'bg-teal-500' },
+    })));
+    expect(getByTestId('port-in-0').textContent).toBe('e');
+    expect(getByTestId('port-in-1').textContent).toBe('PV');
+    expect(getByTestId('port-out-0').textContent).toBe('y');
+  });
+
+  it('keeps +/- signs as the Sum input labels and does not show in1/in2', () => {
+    useDiagramStore.getState().updateParams('test-1', { signs: [1, -1] });
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Sum', inputs: 2, outputs: 1, color: 'bg-orange-500' },
+    })));
+    expect(getByTestId('port-in-0').textContent).toBe('+');
+    expect(getByTestId('port-in-1').textContent).toBe('−');
+    expect(getByTestId('port-in-0').textContent).not.toBe('in1');
+  });
+
+  it('renders no port labels for Comment', () => {
+    const { container } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Comment', inputs: 0, outputs: 0, color: '' },
+    })));
+    expect(container.querySelectorAll('[data-testid^="port-"]').length).toBe(0);
+  });
+
+  it('renders multi-output default labels y1..yN (Demux with 2 outputs)', () => {
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Demux', inputs: 1, outputs: 2, color: 'bg-cyan-500' },
+    })));
+    expect(getByTestId('port-in-0').textContent).toBe('u');
+    expect(getByTestId('port-out-0').textContent).toBe('y1');
+    expect(getByTestId('port-out-1').textContent).toBe('y2');
+  });
+
+  it('flipped node swaps handle sides: inputs right, outputs left', () => {
+    const { container } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: 'bg-orange-500', flipped: true },
+    })));
+    const inHandle = container.querySelector('[data-testid="in-0"]')!;
+    const outHandle = container.querySelector('[data-testid="out-0"]')!;
+    expect(inHandle.getAttribute('data-handlepos')).toBe('right');
+    expect(outHandle.getAttribute('data-handlepos')).toBe('left');
+  });
+
+  it('flipped node moves labels to the mirrored sides', () => {
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: 'bg-orange-500', flipped: true },
+    })));
+    expect(getByTestId('port-in-0').getAttribute('data-side')).toBe('right');
+    expect(getByTestId('port-out-0').getAttribute('data-side')).toBe('left');
+  });
+
+  it('unflipped nodes keep inputs left and outputs right', () => {
+    const { container, getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: 'bg-orange-500' },
+    })));
+    const inHandle = container.querySelector('[data-testid="in-0"]')!;
+    const outHandle = container.querySelector('[data-testid="out-0"]')!;
+    expect(inHandle.getAttribute('data-handlepos')).toBe('left');
+    expect(outHandle.getAttribute('data-handlepos')).toBe('right');
+    expect(getByTestId('port-in-0').getAttribute('data-side')).toBe('left');
+    expect(getByTestId('port-out-0').getAttribute('data-side')).toBe('right');
+  });
+
+  it('flipped Sum keeps signs on the right side', () => {
+    useDiagramStore.getState().updateParams('test-1', { signs: [1, 1] });
+    const { getByTestId } = render(React.createElement(BaseNode, makeProps({
+      data: { type: 'Sum', inputs: 2, outputs: 1, color: 'bg-orange-500', flipped: true },
+    })));
+    expect(getByTestId('port-in-0').textContent).toBe('+');
+    expect(getByTestId('port-in-0').getAttribute('data-side')).toBe('right');
+  });
 });

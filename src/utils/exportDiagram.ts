@@ -93,9 +93,11 @@ export function exportDiagramSvg(
     const tSize = sizes.get(tgt.id)!;
     const srcOuts = src.data?.outputs ?? 1;
     const tgtIns = tgt.data?.inputs ?? 1;
-    const x1 = src.position.x + sSize.w;
+    const srcFlipped = Boolean((src.data as { flipped?: boolean })?.flipped);
+    const tgtFlipped = Boolean((tgt.data as { flipped?: boolean })?.flipped);
+    const x1 = srcFlipped ? src.position.x : src.position.x + sSize.w;
     const y1 = src.position.y + handleY(portIndex(e.sourceHandle), srcOuts, sSize.h);
-    const x2 = tgt.position.x;
+    const x2 = tgtFlipped ? tgt.position.x + tSize.w : tgt.position.x;
     const y2 = tgt.position.y + handleY(portIndex(e.targetHandle), tgtIns, tSize.h);
     parts.push(
       `<line id="${escapeXml(e.id)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#94a3b8" stroke-width="1.5" />`

@@ -100,4 +100,39 @@ describe('completeConnection', () => {
     expect(edges).toHaveLength(1);
     expect(edges[0].data?.waypoints).toEqual(planted);
   });
+
+  it("anchors the auto-route at a flipped source node's left-edge output", () => {
+    wireGesture.set({
+      active: true,
+      source: { nodeId: 'src-1', handleId: 'out-0' },
+      planted: [],
+      cursor: null,
+      pointerId: null,
+      completed: false,
+    });
+    // src-1 sits right of tgt-1 (backward edge: src.x 300 > tgt.x 100) and is
+    // flipped, so its output handle anchors at its LEFT edge (position.x, no
+    // width). measured.width is absent → nodePortPosition falls back to w=100
+    // for right-edge math, but a flipped source never adds width → x = 300.
+    const mockGetNode = (id: string) => ({
+      position: id === 'src-1' ? { x: 300, y: 100 } : { x: 100, y: 100 },
+      measured: { height: 40 },
+      data: { outputs: 1, inputs: 1, flipped: id === 'src-1' ? true : undefined },
+    });
+
+    const result = completeConnection({
+      source: 'src-1', target: 'tgt-1', sourceHandle: 'out-0', targetHandle: 'in-0',
+    }, mockGetNode);
+    expect(result).toBe(true);
+
+    const edges = useDiagramStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    const waypoints = (edges[0].data as any).waypoints as { x: number; y: number }[];
+    expect(waypoints.length).toBeGreaterThan(0);
+    // computeFeedbackRoute starts clearance=60 right of the anchor; the anchor
+    // is src-1.position.x = 300 (flipped → left edge), so wp0.x === 360 and
+    // wp0.y === port y = 100 + (1/2)*40 = 120 (only port 0 of 1 exists).
+    expect(waypoints[0].x).toBe(360);
+    expect(waypoints[0].y).toBe(120);
+  });
 });

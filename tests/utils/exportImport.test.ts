@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { importModel } from '../../src/utils/exportImport';
+import { importModel, serializeBlocks } from '../../src/utils/exportImport';
 import { useDiagramStore } from '../../src/store/diagramStore';
 
 function makeModelJson(overrides: Record<string, unknown> = {}) {
@@ -196,5 +196,46 @@ describe('importModel', () => {
     expect(s.canUndo).toBe(false);
     useDiagramStore.getState().undo(); // no-op — cannot undo into the old diagram
     expect(useDiagramStore.getState().nodes.map((n) => n.id)).toEqual(['Constant-1', 'Scope-1']);
+  });
+});
+
+describe('flip round-trip', () => {
+  it('serializeBlocks writes flipped when node data.flipped is true', () => {
+    const nodes = [{
+      id: 'g1', type: 'Math', position: { x: 10, y: 20 },
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: '', flipped: true },
+    }] as any[];
+    const out = serializeBlocks(nodes, {});
+    expect(out[0]).toEqual({ id: 'g1', type: 'Gain', params: {}, position: { x: 10, y: 20 }, flipped: true });
+  });
+
+  it('serializeBlocks writes flipped:false when absent', () => {
+    const nodes = [{
+      id: 'g1', type: 'Math', position: { x: 10, y: 20 },
+      data: { type: 'Gain', inputs: 1, outputs: 1, color: '' },
+    }] as any[];
+    expect(serializeBlocks(nodes, {})[0].flipped).toBe(false);
+  });
+
+  it('importModel restores flipped:true onto node.data', async () => {
+    const json = JSON.stringify({
+      blocks: [
+        { id: 'g1', type: 'Gain', params: { gain: 2 }, position: { x: 10, y: 20 }, flipped: true },
+      ],
+      edges: [],
+    });
+    await importModel(new File([json], 'flipped.json', { type: 'application/json' }));
+    const node = useDiagramStore.getState().nodes[0];
+    expect((node.data as any).flipped).toBe(true);
+    expect(node.data.type).toBe('Gain');
+  });
+
+  it('importModel defaults old-format JSON (no flipped) to unflipped', async () => {
+    const json = JSON.stringify({
+      blocks: [{ id: 'g1', type: 'Gain', params: {}, position: { x: 0, y: 0 } }],
+      edges: [],
+    });
+    await importModel(new File([json], 'old.json', { type: 'application/json' }));
+    expect((useDiagramStore.getState().nodes[0].data as any).flipped).toBe(false);
   });
 });

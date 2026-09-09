@@ -1,15 +1,31 @@
 import { useDiagramStore } from '../store/diagramStore';
 import type { SerializedGraph } from '../engine/types';
 import type { Node, Edge, XYPosition } from '@xyflow/react';
-import type { BlockType } from '../blocks/types';
+import type { BlockType, Params } from '../blocks/types';
 import { BlockCategory } from '../blocks/types';
 import type { GroupBox } from './groups';
 
+export type ExportedBlock = SerializedGraph['blocks'][number] & { flipped?: boolean };
+
 export interface ExportedModel {
-  blocks: SerializedGraph['blocks'];
+  blocks: ExportedBlock[];
   edges: (SerializedGraph['edges'][number] & { waypoints?: XYPosition[] })[];
   simConfig: { dt: number; duration: number };
   groups?: GroupBox[];
+}
+
+/**
+ * Serialize store nodes into the export block shape, including the optional
+ * flip flag (Feature H). Pure — extracted from exportModel for headless tests.
+ */
+export function serializeBlocks(nodes: Node[], params: Record<string, Params>): ExportedBlock[] {
+  return nodes.map((n) => ({
+    id: n.id,
+    type: n.data?.type as BlockType,
+    params: params[n.id] ?? {},
+    position: n.position,
+    flipped: Boolean((n.data as { flipped?: boolean })?.flipped),
+  }));
 }
 
 function parsePort(handle: string | null | undefined): number {
@@ -25,12 +41,7 @@ export function exportModel(): void {
   // Filter out phantom edges whose source or target doesn't exist
   const cleanEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
   const model: ExportedModel = {
-    blocks: nodes.map((n) => ({
-      id: n.id,
-      type: n.data?.type as BlockType,
-      params: params[n.id] ?? {},
-      position: n.position,
-    })),
+    blocks: serializeBlocks(nodes, params),
     edges: cleanEdges.map((e) => ({
       id: e.id,
       source: e.source,
@@ -85,7 +96,7 @@ export function loadModel(data: ExportedModel): void {
       id: b.id,
       type: categoryForType(b.type),
       position: b.position,
-      data: { type: b.type, inputs, outputs: io.outputs, color: '' },
+      data: { type: b.type, inputs, outputs: io.outputs, color: '', flipped: (b as ExportedBlock).flipped === true },
     };
   });
 

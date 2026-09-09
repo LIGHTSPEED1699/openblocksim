@@ -47,6 +47,7 @@ interface DiagramState {
   removeNode: (id: string) => void;
   updateParams: (id: string, params: Params) => void;
   selectBlock: (id: string | null) => void;
+  flipNode: (id: string) => void;
   setGroups: (groups: GroupBox[]) => void;
   addGroup: (init?: Partial<GroupBoxRect>) => void;
   moveGroupTo: (id: string, x: number, y: number) => void;
@@ -170,6 +171,20 @@ export const useDiagramStore = create<DiagramState>()(
           recordMutation(before, currentDoc(), `param:${id}:${Object.keys(params).sort().join(',')}`);
         },
         selectBlock: (id) => set((state) => ({ selectedBlockId: id, selectedGroupId: id === null ? state.selectedGroupId : null })),
+        // Feature H R-H2: mirror the node horizontally (swap input/output handle
+        // sides). The flag lives on node.data so persist + JSON round-trip carry
+        // it for free (exportImport adds the field explicitly in Task T5).
+        flipNode: (id) => {
+          const before = currentDoc();
+          set((state) => ({
+            nodes: state.nodes.map((n) =>
+              n.id === id
+                ? { ...n, data: { ...n.data, flipped: !Boolean((n.data as { flipped?: boolean })?.flipped) } }
+                : n,
+            ),
+          }));
+          recordMutation(before, currentDoc());
+        },
         setGroups: (groups) => {
           const before = currentDoc();
           set({ groups });

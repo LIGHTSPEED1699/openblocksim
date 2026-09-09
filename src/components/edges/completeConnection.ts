@@ -32,8 +32,8 @@ export function completeConnection(
     if (srcNode && tgtNode && isBackwardEdge(srcNode, tgtNode)) {
       const srcPortIdx = parsePortIndex(connection.sourceHandle);
       const tgtPortIdx = parsePortIndex(connection.targetHandle);
-      const srcPort = nodePortPosition(srcNode, srcPortIdx, (srcNode.data as any)?.outputs ?? 1, true);
-      const tgtPort = nodePortPosition(tgtNode, tgtPortIdx, (tgtNode.data as any)?.inputs ?? 1, false);
+      const srcPort = nodePortPosition(srcNode, srcPortIdx, (srcNode.data as any)?.outputs ?? 1, true, Boolean((srcNode.data as any)?.flipped));
+      const tgtPort = nodePortPosition(tgtNode, tgtPortIdx, (tgtNode.data as any)?.inputs ?? 1, false, Boolean((tgtNode.data as any)?.flipped));
       const srcBottom = srcNode.position.y + (srcNode.measured?.height ?? 40);
       const tgtBottom = tgtNode.position.y + (tgtNode.measured?.height ?? 40);
       waypoints = computeFeedbackRoute(srcPort, tgtPort, srcBottom, tgtBottom);
