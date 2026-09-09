@@ -4,7 +4,7 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 
 ## Features
 
-- **19 block types** across 6 categories: Sources, Math, Linear, Nonlinear, Control, Sinks
+- **45+ block types** across 9 categories: Sources, Sinks, Math, Linear, Discrete, Nonlinear, Control, Routing, Annotation
 - **Custom RK4 solver** with NaN/Infinity detection and step limits
 - **Graph compiler** with topological sort, state assignment, and ODE generation
 - **Algebraic loop detection** via DFS-based cycle detection
@@ -17,6 +17,9 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
   dragging a box moves its contained nodes, deleting a box (with confirmation) deletes
   its contents, and membership follows geometry (a node whose top-left corner is inside
   the box). Boxes are saved in the model JSON (`groups`) and survive export/import.
+- **Semantic port labels** (u/y/in1/in2) rendered from BlockMeta on every block
+- **Node flip** (F key or right-click → Flip) — mirrors a node and swaps its input/output handle sides
+- **Draggable wire waypoints** — drag any edge to bend it, drag waypoint dots to re-route, double-click a dot to delete; waypoints persist in the model JSON
 - **JSON export/import** for saving and sharing models
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere
@@ -55,14 +58,15 @@ npm run test:e2e # Run E2E tests (Playwright)
 
 ## Block Types
 
-| Category | Blocks |
-|----------|--------|
-| Sources | Constant, Step, Ramp, Sine, Square |
-| Math | Sum, Gain, Product |
-| Linear | Integrator, Derivative, TransferFunction, StateSpace, TransportDelay |
-| Nonlinear | Saturation, Deadzone |
-| Control | PID, Relay |
-| Sinks | Scope, ToWorkspace |
+Block metadata (categories, KaTeX math icons, port labels, parameter specs) lives in
+`src/blocks/meta.ts`. Sources: Constant, Step, Ramp, Sine, Square, PulseGenerator, Clock,
+ChirpSignal, RepeatingSequence, RandomNumber · Sinks: Scope, ToWorkspace, Terminator,
+Display, StopSimulation · Math: Sum, Gain, Product, Abs, Sign, Bias, UnaryMinus, Divide,
+MinMax, RoundingFunction, MathFunction, TrigFunction, Interpolate, Pow, Clip · Linear:
+TransferFunction, StateSpace, Integrator, Derivative, TransportDelay · Discrete: UnitDelay,
+DiscreteIntegrator, DiscreteTransferFcn, Memory · Nonlinear: Saturation, Deadzone,
+RateLimiter, Quantizer, Backlash · Control: PID, Relay · Routing: Mux, Demux, Switch ·
+Annotation: Comment.
 
 ## Deployment
 
