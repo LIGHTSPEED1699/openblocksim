@@ -1,6 +1,6 @@
 import { validateGraph } from './validate';
 import { compileGraph } from './compiler';
-import { solve, solveAdaptive } from './solver';
+import { solve, solveAdaptive, solveBDF } from './solver';
 import { BlockRegistry } from '../blocks/registry';
 import { BlockType } from '../blocks/types';
 import { Constant } from '../blocks/sources/Constant';
@@ -123,6 +123,8 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const rtol = msg.rtol ?? 1e-4;
       const atol = msg.atol ?? 1e-6;
       result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol }, new Array(model.stateSize).fill(0));
+    } else if (solverType === 'bdf') {
+      result = solveBDF(model, { dt: msg.dt, duration: msg.duration, solverType: 'bdf', rtol: msg.rtol, atol: msg.atol }, new Array(model.stateSize).fill(0));
     } else {
       result = solve(model, { dt: msg.dt, duration: msg.duration }, new Array(model.stateSize).fill(0));
     }

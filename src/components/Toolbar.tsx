@@ -9,8 +9,8 @@ interface Props {
   onToggleTheme: () => void;
   isRunning?: boolean;
   runStatus?: string | null;
-  solverType?: 'fixed' | 'adaptive';
-  onSolverTypeChange?: (type: 'fixed' | 'adaptive') => void;
+  solverType?: 'fixed' | 'adaptive' | 'bdf';
+  onSolverTypeChange?: (type: 'fixed' | 'adaptive' | 'bdf') => void;
   rtol?: number;
   atol?: number;
   onRtolChange?: (rtol: number) => void;
@@ -46,11 +46,12 @@ export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationCh
         <label className="text-xs text-[var(--text-secondary)]">Solver:</label>
         <select
           value={solverType}
-          onChange={(e) => onSolverTypeChange?.(e.target.value as 'fixed' | 'adaptive')}
+          onChange={(e) => onSolverTypeChange?.(e.target.value as 'fixed' | 'adaptive' | 'bdf')}
           className="bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
         >
           <option value="fixed">RK4 (Fixed)</option>
           <option value="adaptive">RK4(5) (Adaptive)</option>
+          <option value="bdf">BDF (Stiff)</option>
         </select>
       </div>
       <div className="flex items-center gap-1">

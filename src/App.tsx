@@ -121,6 +121,7 @@ export default function App() {
       solverType: store.simConfig.solverType ?? 'fixed',
       rtol: store.simConfig.rtol,
       atol: store.simConfig.atol,
+      maxStep: store.simConfig.maxStep,
     };
     worker.postMessage(msg);
     worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
