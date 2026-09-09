@@ -23,4 +23,20 @@ describe('BlockLibrary', () => {
     const pidElements = screen.getAllByText('PID');
     expect(pidElements.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('shows every block type across all 9 category headers', () => {
+    render(<BlockLibrary onDragStart={() => {}} />);
+    for (const label of ['Sources', 'Sinks', 'Math', 'Linear', 'Discrete', 'Nonlinear', 'Control', 'Routing', 'Annotation']) {
+      expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
+    }
+    // Regression: Pow and Clip were dropped from the hardcoded Math group.
+    expect(screen.getByText('Pow')).toBeInTheDocument();
+    expect(screen.getByText('Clip')).toBeInTheDocument();
+  });
+
+  it('shows the BlockMeta doc as a tooltip on chips', () => {
+    render(<BlockLibrary onDragStart={() => {}} />);
+    expect(screen.getByTitle('Multiply input by gain')).toBeInTheDocument(); // Gain doc, meta.ts:30
+    expect(screen.getByTitle('Constant value source')).toBeInTheDocument();  // Constant doc, meta.ts:10
+  });
 });
