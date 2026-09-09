@@ -158,6 +158,10 @@ export default function App() {
     setSimError(null);
   };
 
+  const handleAddGroup = () => {
+    useDiagramStore.getState().addGroup();
+  };
+
   const handleExportSvg = () => {
     const store = useDiagramStore.getState();
     const svg = exportDiagramSvg(store.nodes as ExportableNode[], store.edges as ExportableEdge[]);
@@ -209,6 +213,7 @@ export default function App() {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
+        onAddGroup={handleAddGroup}
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />

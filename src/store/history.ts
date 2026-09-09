@@ -1,5 +1,6 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { Params } from '../blocks/types';
+import type { GroupBox } from '../utils/groups';
 
 /** Maximum number of undo entries kept in memory per session (R-F1: bounded). */
 export const HISTORY_LIMIT = 100;
@@ -31,6 +32,7 @@ export interface DiagramDoc {
   nodes: NodeModel[];
   edges: EdgeModel[];
   params: Record<string, Params>;
+  groups: GroupBox[];
 }
 
 export interface HistoryEntry {
@@ -40,7 +42,7 @@ export interface HistoryEntry {
   key?: string;
 }
 
-export function snapshotDoc(nodes: Node[], edges: Edge[], params: Record<string, Params>): DiagramDoc {
+export function snapshotDoc(nodes: Node[], edges: Edge[], params: Record<string, Params>, groups: GroupBox[]): DiagramDoc {
   return {
     nodes: nodes.map((n) => ({
       id: n.id,
@@ -58,6 +60,7 @@ export function snapshotDoc(nodes: Node[], edges: Edge[], params: Record<string,
       data: e.data,
     })),
     params,
+    groups,
   };
 }
 
