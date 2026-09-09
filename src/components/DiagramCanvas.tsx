@@ -85,6 +85,11 @@ import { StopSimulation } from '../blocks/sinks/StopSimulation';
 import { CommentNode } from './nodes/CommentNode';
 import { RoutingNode } from './nodes/RoutingNode';
 import { DiscreteNode } from './nodes/DiscreteNode';
+import { PortNode } from './nodes/PortNode';
+import { SubsystemNode } from './nodes/SubsystemNode';
+import { Inport } from '../blocks/routing/Inport';
+import { Outport } from '../blocks/routing/Outport';
+import { Subsystem } from '../blocks/annotation/Subsystem';
 
 const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.Comment]: Comment,
@@ -137,6 +142,9 @@ const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.Terminator]: Terminator,
   [BlockType.Display]: Display,
   [BlockType.StopSimulation]: StopSimulation,
+  [BlockType.Inport]: Inport,
+  [BlockType.Outport]: Outport,
+  [BlockType.Subsystem]: Subsystem,
 };
 
 const nodeTypes = {
@@ -149,6 +157,8 @@ const nodeTypes = {
   Routing: RoutingNode,
   Discrete: DiscreteNode,
   Annotation: CommentNode,
+  Port: PortNode,
+  Hierarchy: SubsystemNode,
   [GROUP_NODE_TYPE]: GroupBoxNode,
 };
 

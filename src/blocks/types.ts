@@ -49,6 +49,9 @@ export enum BlockType {
   Terminator = 'Terminator',
   Display = 'Display',
   StopSimulation = 'StopSimulation',
+  Inport = 'Inport',
+  Outport = 'Outport',
+  Subsystem = 'Subsystem',
 }
 
 export enum BlockCategory {
@@ -61,6 +64,8 @@ export enum BlockCategory {
   Routing = 'Routing',
   Annotation = 'Annotation',
   Discrete = 'Discrete',
+  Port = 'Port',
+  Hierarchy = 'Hierarchy',
 }
 
 export type Params = Record<string, number | number[] | string>;

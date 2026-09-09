@@ -161,6 +161,9 @@ const TYPE_IO: Record<string, { inputs: number; outputs: number }> = {
   Display: { inputs: 1, outputs: 0 },
   StopSimulation: { inputs: 1, outputs: 0 },
   Comment: { inputs: 0, outputs: 0 },
+  Inport: { inputs: 0, outputs: 1 },
+  Outport: { inputs: 1, outputs: 0 },
+  Subsystem: { inputs: 0, outputs: 0 },
 };
 
 const CATEGORY_FOR_TYPE: Record<string, BlockCategory> = {
@@ -186,6 +189,9 @@ const CATEGORY_FOR_TYPE: Record<string, BlockCategory> = {
   Terminator: BlockCategory.Sink, Display: BlockCategory.Sink,
   StopSimulation: BlockCategory.Sink,
   Comment: BlockCategory.Annotation,
+  Inport: BlockCategory.Port,
+  Outport: BlockCategory.Port,
+  Subsystem: BlockCategory.Hierarchy,
 };
 
 function categoryForType(type: BlockType): string {

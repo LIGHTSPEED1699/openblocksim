@@ -95,6 +95,13 @@ const meta: Record<BlockType, BlockMetaEntry> = {
 
   // ── Annotation ──
   [BlockType.Comment]: { type: BlockType.Comment, category: 'Annotation', doc: 'Annotation text block', paramSpec: { text: { type: 'text', default: 'Double-click to edit', label: 'Text' } } },
+
+  // ── Ports (editor-only — created inside the subsystem editor, not the outer palette) ──
+  [BlockType.Inport]: { type: BlockType.Inport, category: 'Port', math: '\\triangleright', doc: 'Subsystem input port (0-based index)', paramSpec: { port: { type: 'number', default: 0, min: 0, label: 'Port #' } } },
+  [BlockType.Outport]: { type: BlockType.Outport, category: 'Port', math: '\\triangleleft', doc: 'Subsystem output port (0-based index)', paramSpec: { port: { type: 'number', default: 0, min: 0, label: 'Port #' } } },
+
+  // ── Hierarchy ──
+  [BlockType.Subsystem]: { type: BlockType.Subsystem, category: 'Hierarchy', math: '\\boxed{\\text{sub}}', doc: 'Subsystem — edit by double-click (inner diagram in params.subsystem)', paramSpec: {} },
 };
 
 export function getBlockMeta(type: BlockType): BlockMetaEntry {

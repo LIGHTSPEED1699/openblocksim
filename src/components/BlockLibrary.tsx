@@ -15,6 +15,7 @@ const GROUP_ACCENT: Record<string, string> = {
   Control: 'border-l-teal-500',
   Routing: 'border-l-cyan-500',
   Annotation: 'border-l-amber-500',
+  Hierarchy: 'border-l-fuchsia-500',
 };
 
 // Only meta entries WITHOUT a math string and NOT using a themed PNG icon need
