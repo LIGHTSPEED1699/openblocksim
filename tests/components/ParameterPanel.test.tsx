@@ -36,4 +36,45 @@ describe('ParameterPanel', () => {
     fireEvent.change(input, { target: { value: '10' } });
     expect(onUpdate).toHaveBeenCalledWith('g1', { gain: 10 });
   });
+
+  it('stores a "="-prefixed expression string verbatim', () => {
+    const onUpdate = vi.fn();
+    render(
+      <ParameterPanel
+        selectedBlockId="g1"
+        blockType={BlockType.Gain}
+        params={{ gain: 5 }}
+        onUpdate={onUpdate}
+      />
+    );
+    const input = screen.getByDisplayValue('5');
+    fireEvent.change(input, { target: { value: '=base*2' } });
+    expect(onUpdate).toHaveBeenCalledWith('g1', { gain: '=base*2' });
+  });
+
+  it('displays an existing expression value in the field', () => {
+    render(
+      <ParameterPanel
+        selectedBlockId="g1"
+        blockType={BlockType.Gain}
+        params={{ gain: '=2*3' }}
+        onUpdate={() => {}}
+      />
+    );
+    expect(screen.getByDisplayValue('=2*3')).toBeInTheDocument();
+  });
+
+  it('ignores an empty edit (keeps the previous value)', () => {
+    const onUpdate = vi.fn();
+    render(
+      <ParameterPanel
+        selectedBlockId="g1"
+        blockType={BlockType.Gain}
+        params={{ gain: 5 }}
+        onUpdate={onUpdate}
+      />
+    );
+    fireEvent.change(screen.getByDisplayValue('5'), { target: { value: '' } });
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
 });

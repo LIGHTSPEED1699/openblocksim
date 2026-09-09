@@ -1,6 +1,7 @@
 import { SerializedGraph, CompiledModel, CrossingEvent } from './types';
 import { BlockRegistry } from '../blocks/registry';
 import { Block, BlockType } from '../blocks/types';
+import { resolveExpressionParams } from './paramExpr';
 
 export function compileGraph(
   graph: SerializedGraph,
@@ -159,6 +160,17 @@ export function compileGraph(
       defaults[key] = spec.default;
     }
     mergedParams.set(b.id, { ...defaults, ...b.params });
+  }
+
+  // S3: resolve "="-prefixed JS expressions for number-typed params once per
+  // run (bdsim resolves =expr at block instantiation). Non-number specs are
+  // never touched, so plain text params (e.g. Comment.text) pass through.
+  for (const b of graph.blocks) {
+    const block = blocks.get(b.id)!;
+    mergedParams.set(
+      b.id,
+      resolveExpressionParams(b.id, mergedParams.get(b.id)!, (key) => block.parameters[key]?.type === 'number'),
+    );
   }
 
   // Helper: compute state size for a block (TransportDelay and TransferFunction have dynamic size)

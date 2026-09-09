@@ -1,9 +1,7 @@
 import { BlockType, type BlockMetaEntry } from './types';
 
-// Re-export ParamSpec entries from ParameterPanel for the metadata registry.
-// These mirror the PARAM_SPECS in ParameterPanel.tsx — the single source of truth
-// is now BlockMeta. The ParameterPanel will be updated to read from here in a
-// follow-up, but for now both coexist to avoid breaking existing behavior.
+// Single source of truth for block metadata. The palette (BlockLibrary) and
+// parameter panel (ParameterPanel) both derive from this registry.
 
 const meta: Record<BlockType, BlockMetaEntry> = {
   // ── Sources ──
@@ -101,4 +99,9 @@ const meta: Record<BlockType, BlockMetaEntry> = {
 
 export function getBlockMeta(type: BlockType): BlockMetaEntry {
   return meta[type];
+}
+
+/** All block types in meta-declaration order (palette group order). */
+export function listBlockTypes(): BlockType[] {
+  return Object.keys(meta) as BlockType[];
 }

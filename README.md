@@ -4,7 +4,7 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 
 ## Features
 
-- **45+ block types** across 9 categories: Sources, Sinks, Math, Linear, Discrete, Nonlinear, Control, Routing, Annotation
+- **50 block types** across 9 categories — Sources, Sinks, Math, Linear, Discrete, Nonlinear, Control, Routing, Annotation — auto-discovered from declarative block metadata (math icons + doc tooltips)
 - **Custom RK4 solver** with NaN/Infinity detection and step limits
 - **Graph compiler** with topological sort, state assignment, and ODE generation
 - **Algebraic loop detection** via DFS-based cycle detection
@@ -21,6 +21,9 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 - **Node flip** (F key or right-click → Flip) — mirrors a node and swaps its input/output handle sides
 - **Draggable wire waypoints** — drag any edge to bend it, drag waypoint dots to re-route, double-click a dot to delete; waypoints persist in the model JSON
 - **JSON export/import** for saving and sharing models
+- **Example gallery** — 9 prebuilt models (step responses, PID loops, relay bang-bang, drum-level control, MRAC, …) loadable from the Examples menu
+- **Share by link** — Copy Link encodes the current model into the URL hash (#m=…); opening that URL loads the model
+- **Parameter expressions** — any numeric parameter accepts a `=`-prefixed JS expression (e.g. `=Kp/4`) referencing the block's other parameters plus `Math`/`pi`; resolved once when the simulation starts
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere
 
