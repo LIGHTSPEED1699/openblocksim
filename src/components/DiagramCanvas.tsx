@@ -14,9 +14,11 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDiagramStore } from '../store/diagramStore';
 import { BlockType, BlockCategory, type BlockFactory, type Params } from '../blocks/types';
+import { GroupBoxNode, GROUP_NODE_TYPE } from './nodes/GroupBoxNode';
+import { partitionNodeChanges } from '../utils/groupNodeChanges';
 import { StraightEdge } from './edges/StraightEdge';
 import { ConnectionPreview } from './ConnectionPreview';
 import { WireOverlay } from './WireOverlay';
@@ -145,6 +147,7 @@ const nodeTypes = {
   Routing: RoutingNode,
   Discrete: DiscreteNode,
   Annotation: CommentNode,
+  [GROUP_NODE_TYPE]: GroupBoxNode,
 };
 
 const edgeTypes = {
@@ -164,8 +167,34 @@ export function DiagramCanvas() {
   const selectBlock = useDiagramStore((s) => s.selectBlock);
   const addNode = useDiagramStore((s) => s.addNode);
   const theme = useDiagramStore((s) => s.theme);
+  const groups = useDiagramStore((s) => s.groups);
+  const selectedGroupId = useDiagramStore((s) => s.selectedGroupId);
+  const moveGroupTo = useDiagramStore((s) => s.moveGroupTo);
+  const resizeGroup = useDiagramStore((s) => s.resizeGroup);
+  const selectGroup = useDiagramStore((s) => s.selectGroup);
   const { screenToFlowPosition, getNode } = useReactFlow();
   const [wireActive, setWireActive] = useState(false);
+
+  // Derived array handed to ReactFlow: user nodes + one GroupBox node per group.
+  const displayNodes = useMemo<Node[]>(() => {
+    const groupNodes: Node[] = groups.map((g) => ({
+      id: g.id,
+      type: GROUP_NODE_TYPE,
+      position: { x: g.x, y: g.y },
+      width: g.width,
+      height: g.height,
+      // Keep the box below every ordinary node even when selected: RF 'basic'
+      // zIndex mode adds +1000 to selected nodes (elevateNodesOnSelect), so
+      // -1001 selected = -1 < 0 (verified: system/dist/esm/index.mjs:1547,1716-1721).
+      zIndex: -1001,
+      selected: selectedGroupId === g.id,
+      selectable: true,
+      deletable: false,
+      draggable: true,
+      data: { groupId: g.id },
+    }));
+    return [...nodes, ...groupNodes];
+  }, [nodes, groups, selectedGroupId]);
 
   const onConnectStart = useCallback(
     (_event: any, params: { nodeId: string | null; handleId: string | null }) => {
@@ -216,9 +245,19 @@ export function DiagramCanvas() {
     useDiagramStore.getState().endCoalesce();
   }, []);
 
+  const groupIds = useMemo(() => new Set(groups.map((g) => g.id)), [groups]);
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes(applyNodeChanges(changes, nodes) as Node[]);
+      const { nodeChanges, groupChanges } = partitionNodeChanges(changes, (id) => groupIds.has(id));
+      if (nodeChanges.length > 0) {
+        setNodes(applyNodeChanges(nodeChanges, nodes) as Node[]);
+      }
+      for (const gc of groupChanges) {
+        if (gc.kind === 'move') moveGroupTo(gc.id, gc.x, gc.y);
+        else if (gc.kind === 'resize') resizeGroup(gc.id, gc);
+        else if (gc.kind === 'select') selectGroup(gc.selected ? gc.id : null);
+      }
       // A drag ends with one final position change carrying dragging:false —
       // this fires even for aborted drags, so close the coalesce window here.
       const dragStopped = changes.some(
@@ -226,7 +265,7 @@ export function DiagramCanvas() {
       );
       if (dragStopped) useDiagramStore.getState().endCoalesce();
     },
-    [nodes, setNodes]
+    [nodes, setNodes, groupIds, moveGroupTo, resizeGroup, selectGroup]
   );
 
   const onEdgesChange = useCallback(
@@ -276,7 +315,7 @@ export function DiagramCanvas() {
   return (
     <div className="flex-1 h-full" onDrop={onDrop} onDragOver={(e) => e.preventDefault()}>
       <ReactFlow
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -284,7 +323,10 @@ export function DiagramCanvas() {
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
         onReconnect={onReconnect}
-        onNodeClick={(_, node) => selectBlock(node.id)}
+        onNodeClick={(_, node) => {
+          if (node.type === GROUP_NODE_TYPE) return;
+          selectBlock(node.id);
+        }}
         onNodesDelete={onNodesDelete}
         onNodeDragStart={handleDragBegin}
         onNodeDragStop={handleDragEnd}
