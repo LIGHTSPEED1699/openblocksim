@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { BlockType, type ParamSpec, type Params } from '../blocks/types';
 
-const PARAM_SPECS: Record<BlockType, ParamSpec> = {
+// TEMPORARY export for the S4 parity lock test (tests/components/paramSpec-parity.test.ts).
+// Deleted in Task S4-2 once ParameterPanel reads BlockMeta directly.
+export const PARAM_SPECS: Record<BlockType, ParamSpec> = {
   [BlockType.Constant]: { value: { type: 'number', default: 1, label: 'Value' } },
   [BlockType.Step]: {
     stepTime: { type: 'number', default: 1, min: 0, step: 0.1, label: 'Step Time' },
