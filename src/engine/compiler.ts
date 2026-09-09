@@ -102,6 +102,49 @@ export function compileGraph(
     }
   }
 
+  // Classify feedback cycles as algebraic or dynamic.
+  // For each feedback edge (source → target), walk the cycle from target back
+  // to source through non-feedback edges. If no block in the cycle is dynamic
+  // (stateUpdateMode derivative/absolute), the loop is algebraic.
+  const algebraicLoops: string[][] = [];
+  const dynamicLoops: string[][] = [];
+  // Build adjacency excluding feedback edges for cycle walking
+  const cycleAdj = new Map<string, string[]>();
+  for (const b of graph.blocks) cycleAdj.set(b.id, []);
+  for (const e of validEdges) {
+    if (!feedbackEdges.has(e.id)) cycleAdj.get(e.source)?.push(e.target);
+  }
+
+  for (const feId of feedbackEdges) {
+    const fe = validEdges.find((e) => e.id === feId);
+    if (!fe) continue;
+    const cycleStart = fe.target; // cycle: target → ... → source → target
+    const cycleEnd = fe.source;
+    // DFS from cycleStart to cycleEnd through non-feedback edges
+    const visited = new Set<string>();
+    let found: string[] | null = null;
+    function dfsCycle(node: string, path: string[]): boolean {
+      if (node === cycleEnd) {
+        found = [...path, node];
+        return true;
+      }
+      if (visited.has(node)) return false;
+      visited.add(node);
+      for (const next of cycleAdj.get(node) ?? []) {
+        if (dfsCycle(next, [...path, node])) return true;
+      }
+      return false;
+    }
+    dfsCycle(cycleStart, []);
+    if (!found) found = [cycleStart, cycleEnd];
+    const hasDynamic = found.some((id) => blocks.get(id)?.isDynamic);
+    if (hasDynamic) {
+      dynamicLoops.push(found);
+    } else {
+      algebraicLoops.push(found);
+    }
+  }
+
   // Merge block parameter defaults with graph params.
   // Blocks dropped on canvas get params={} (factory create() ignores the
   // argument). Without this merge, compute() receives undefined for every
@@ -329,5 +372,7 @@ export function compileGraph(
     workspaceBlockIds,
     blockOrder: order,
     events,
+    algebraicLoops,
+    dynamicLoops,
   };
 }
