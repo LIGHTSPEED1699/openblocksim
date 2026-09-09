@@ -34,7 +34,13 @@ export function GroupBoxNode({ id, selected }: NodeProps) {
 
   return (
     <>
-      <NodeResizer isVisible={selected} minWidth={GROUP_BOX_MIN_WIDTH} minHeight={GROUP_BOX_MIN_HEIGHT} />
+      <NodeResizer
+        isVisible={selected}
+        minWidth={GROUP_BOX_MIN_WIDTH}
+        minHeight={GROUP_BOX_MIN_HEIGHT}
+        onResizeStart={() => useDiagramStore.getState().beginCoalesce()}
+        onResizeEnd={() => useDiagramStore.getState().endCoalesce()}
+      />
       <div
         data-testid="group-box"
         className="absolute inset-0 rounded-lg border-2"

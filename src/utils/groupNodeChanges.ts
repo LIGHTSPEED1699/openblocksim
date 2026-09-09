@@ -30,7 +30,7 @@ export function partitionNodeChanges(
   const selections: { id: string; selected: boolean }[] = [];
 
   for (const c of changes) {
-    if (!isGroupNode(c.id)) {
+    if (!('id' in c) || !isGroupNode(c.id)) {
       nodeChanges.push(c);
       continue;
     }
