@@ -95,3 +95,13 @@ export interface BlockFactory {
   category: BlockCategory;
   create: (params?: Params) => Block;
 }
+
+export interface BlockMetaEntry {
+  type: BlockType;
+  category: string;
+  math?: string;
+  doc?: string;
+  portLabels?: string[];
+  paramSpec?: ParamSpec;
+  eventG?: (t: number, state: number[], params: Params) => number[];
+}
