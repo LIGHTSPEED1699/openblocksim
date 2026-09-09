@@ -403,6 +403,30 @@ export function compileGraph(
     }
   }
 
+  // Collect periodic sample-time events for discrete blocks that declare a
+  // sampleTime > 0 (ZOH semantics). Their zero-crossings sit exactly on the
+  // sample boundaries so the adaptive solver records them (and caps its step
+  // at dt), mirroring how Relay/Saturation register discontinuity events.
+  const SAMPLE_BLOCK_TYPES = new Set([
+    BlockType.UnitDelay,
+    BlockType.DiscreteIntegrator,
+    BlockType.DiscreteTransferFcn,
+    BlockType.Memory,
+  ]);
+  for (const id of order) {
+    const block = blocks.get(id)!;
+    if (!SAMPLE_BLOCK_TYPES.has(block.type)) continue;
+    const blockParams = mergedParams.get(id)!;
+    const Ts = blockParams.sampleTime as number | undefined;
+    if (typeof Ts === 'number' && Ts > 0) {
+      events.push({
+        id,
+        // sin(pi t/Ts) changes sign exactly at t = k*Ts (sample boundaries)
+        sign: (t: number) => Math.sin((Math.PI * t) / Ts),
+      });
+    }
+  }
+
   return {
     stateSize: stateOffset,
     f,
