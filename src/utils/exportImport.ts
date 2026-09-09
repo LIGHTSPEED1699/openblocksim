@@ -3,11 +3,13 @@ import type { SerializedGraph } from '../engine/types';
 import type { Node, Edge, XYPosition } from '@xyflow/react';
 import type { BlockType } from '../blocks/types';
 import { BlockCategory } from '../blocks/types';
+import type { GroupBox } from './groups';
 
 export interface ExportedModel {
   blocks: SerializedGraph['blocks'];
   edges: (SerializedGraph['edges'][number] & { waypoints?: XYPosition[] })[];
   simConfig: { dt: number; duration: number };
+  groups?: GroupBox[];
 }
 
 function parsePort(handle: string | null | undefined): number {
@@ -18,7 +20,7 @@ function parsePort(handle: string | null | undefined): number {
 }
 
 export function exportModel(): void {
-  const { nodes, edges, params, simConfig } = useDiagramStore.getState();
+  const { nodes, edges, params, simConfig, groups } = useDiagramStore.getState();
   const nodeIds = new Set(nodes.map((n) => n.id));
   // Filter out phantom edges whose source or target doesn't exist
   const cleanEdges = edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
@@ -38,6 +40,7 @@ export function exportModel(): void {
       waypoints: (e.data as any)?.waypoints ?? [],
     })),
     simConfig,
+    groups: groups.map((g) => ({ ...g })),
   };
 
   const json = JSON.stringify(model, null, 2);
@@ -107,6 +110,7 @@ export function loadModel(data: ExportedModel): void {
   if (data.simConfig) {
     store.setSimConfig(data.simConfig);
   }
+  store.setGroups(data.groups ?? []);
   // Feature F: a model load (file import / example / Simulink) replaces the
   // whole diagram, so it is deliberately NOT an undoable step. Reset history
   // so undo/redo cannot step back into a previous session's diagram.
