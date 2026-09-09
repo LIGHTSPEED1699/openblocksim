@@ -180,4 +180,21 @@ describe('importModel', () => {
     expect((edge.data as any).waypoints).toEqual([]);
     expect(edge.type).toBe('straight');
   });
+
+  it('importing a model resets undo history (load is a fresh baseline)', async () => {
+    const store = useDiagramStore.getState();
+    store.setNodes([{ id: 'old', type: 'Source', position: { x: 0, y: 0 }, data: { type: 'Constant', inputs: 0, outputs: 1, color: '' } }]);
+    expect(useDiagramStore.getState().past.length).toBeGreaterThan(0);
+
+    const file = new File([makeModelJson()], 'model.json', { type: 'application/json' });
+    await importModel(file);
+
+    const s = useDiagramStore.getState();
+    expect(s.nodes.map((n) => n.id)).toEqual(['Constant-1', 'Scope-1']);
+    expect(s.past).toEqual([]);
+    expect(s.future).toEqual([]);
+    expect(s.canUndo).toBe(false);
+    useDiagramStore.getState().undo(); // no-op — cannot undo into the old diagram
+    expect(useDiagramStore.getState().nodes.map((n) => n.id)).toEqual(['Constant-1', 'Scope-1']);
+  });
 });

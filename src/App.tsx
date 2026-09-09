@@ -5,6 +5,7 @@ import { BlockLibrary } from './components/BlockLibrary';
 import { DiagramCanvas } from './components/DiagramCanvas';
 import { ParameterPanel } from './components/ParameterPanel';
 import { Toolbar } from './components/Toolbar';
+import { UndoRedoShortcuts } from './components/UndoRedoShortcuts';
 import { PlotArea } from './components/PlotArea';
 import { exportModel, importModel, loadModel } from './utils/exportImport';
 import { importSimulinkModel } from './utils/simulinkImport';
@@ -32,6 +33,10 @@ export default function App() {
   const setSimConfig = useDiagramStore((s) => s.setSimConfig);
   const toggleTheme = useDiagramStore((s) => s.toggleTheme);
   const clear = useDiagramStore((s) => s.clear);
+  const canUndo = useDiagramStore((s) => s.canUndo);
+  const canRedo = useDiagramStore((s) => s.canRedo);
+  const undo = useDiagramStore((s) => s.undo);
+  const redo = useDiagramStore((s) => s.redo);
 
   const [showNewMenu, setShowNewMenu] = useState(false);
   const newMenuRef = useRef<HTMLDivElement>(null);
@@ -180,6 +185,7 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col">
+      <UndoRedoShortcuts />
       <Toolbar
         onRun={handleRun}
         onReset={handleReset}
@@ -199,6 +205,10 @@ export default function App() {
         onAtolChange={(atol) => setSimConfig({ atol })}
         onExportSvg={handleExportSvg}
         onExportPng={handleExportPng}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
       <div className="flex flex-1 overflow-hidden">
         <BlockLibrary onDragStart={() => {}} />

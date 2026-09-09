@@ -107,6 +107,10 @@ export function loadModel(data: ExportedModel): void {
   if (data.simConfig) {
     store.setSimConfig(data.simConfig);
   }
+  // Feature F: a model load (file import / example / Simulink) replaces the
+  // whole diagram, so it is deliberately NOT an undoable step. Reset history
+  // so undo/redo cannot step back into a previous session's diagram.
+  useDiagramStore.getState().clearHistory();
 }
 
 const TYPE_IO: Record<string, { inputs: number; outputs: number }> = {
