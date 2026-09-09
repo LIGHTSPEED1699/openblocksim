@@ -1,4 +1,4 @@
-import type { CompiledModel, SimResult } from './types';
+import type { CompiledModel, SimResult, SolverStats } from './types';
 
 const MAX_DURATION = 600;
 const MAX_STEPS = 100000;
@@ -132,6 +132,7 @@ export function solveAdaptive(
 ): SimResult {
   const { dt: hMax, duration, rtol, atol } = config;
   const n = model.stateSize;
+  const wallStart = Date.now();
 
   if (duration > MAX_DURATION) {
     throw new Error(`Simulation duration ${duration}s exceeds maximum of ${MAX_DURATION}s`);
@@ -148,6 +149,15 @@ export function solveAdaptive(
   let h = Math.min(hMax, duration);
   let actualSteps = 0;
   let totalEvaluations = 0;
+  let rejectedSteps = 0;
+  let minStep = h;
+  let maxStep = h;
+  const crossingTimes: number[] = [];
+  let consecutiveTinySteps = 0;
+  const STALL_THRESHOLD = 100; // consecutive tiny steps before stall
+  const TINY_STEP = 1e-10;
+
+  const events = model.events ?? [];
 
   const FAC = 0.9, FACMIN = 0.2, FACMAX = 5.0;
 
@@ -173,6 +183,9 @@ export function solveAdaptive(
 
     // Don't overshoot end time
     if (t + h > duration) h = duration - t;
+
+    const t0 = t;
+    const state0 = [...state];
 
     // DOPRI5 stages
     const k1 = model.f(t, state);
@@ -211,9 +224,40 @@ export function solveAdaptive(
 
     if (errNorm <= 1 || h < 1e-14) {
       // Accept step (or force accept if h is tiny to avoid infinite loop)
+      // Zero-crossing detection: check each event for sign change across [t0, t]
+      if (events.length > 0) {
+        for (const ev of events) {
+          const s0 = ev.sign(t0, state0);
+          const s1 = ev.sign(t + h, y5);
+          if (s0 * s1 < 0) {
+            // Bisect to locate the exact crossing time
+            let a = t0, b = t + h, fa = s0;
+            for (let iter = 0; iter < 60; iter++) {
+              const m = (a + b) / 2;
+              const fm = ev.sign(m, state0.map((s, i) => s + (m - t0) * (y5[i] - s) / h));
+              if (fa * fm <= 0) { b = m; } else { a = m; fa = fm; }
+              if (Math.abs(b - a) < 1e-12) break;
+            }
+            crossingTimes.push((a + b) / 2);
+          }
+        }
+      }
+
       state = y5;
       t += h;
       actualSteps++;
+      if (h < minStep) minStep = h;
+      if (h > maxStep) maxStep = h;
+
+      // Stall detection
+      if (h < TINY_STEP) {
+        consecutiveTinySteps++;
+        if (consecutiveTinySteps > STALL_THRESHOLD) {
+          throw new Error(`Solver stalled at t=${t.toFixed(3)}s — system may be stiff. Try the BDF solver.`);
+        }
+      } else {
+        consecutiveTinySteps = 0;
+      }
 
       // Apply absolute state updates (TransportDelay, Relay, etc.)
       if (model.applyAbsoluteState) model.applyAbsoluteState(t, state);
@@ -255,13 +299,23 @@ export function solveAdaptive(
       }
     } else {
       // Reject step — reduce h and retry
+      rejectedSteps++;
       const fac = FAC * Math.pow(1 / errNorm, 1 / 5);
       h = h * Math.max(FACMIN, fac);
       if (h < 1e-14) {
-        throw new Error(`Step size underflow at t=${t.toFixed(3)}s. System may be stiff.`);
+        throw new Error(`Step size underflow at t=${t.toFixed(3)}s. System may be stiff. Try the BDF solver.`);
       }
     }
   }
 
-  return { time, traces: {}, scopes, actualSteps };
+  const stats: SolverStats = {
+    acceptedSteps: actualSteps,
+    rejectedSteps,
+    minStep: actualSteps > 0 ? minStep : 0,
+    maxStep: actualSteps > 0 ? maxStep : 0,
+    rhsEvals: totalEvaluations,
+    wallMs: Date.now() - wallStart,
+  };
+
+  return { time, traces: {}, scopes, actualSteps, crossingTimes, stats };
 }
