@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeModel, decodeModel } from '../../src/utils/permalink';
+import { encodeModel, decodeModel, parsePermalinkHash } from '../../src/utils/permalink';
 import type { ExportedModel } from '../../src/utils/exportImport';
 
 // A realistic model incl. Unicode comment text, arrays, and waypoints —
@@ -36,5 +36,21 @@ describe('permalink codec', () => {
   it('throws a descriptive error on a corrupt payload', () => {
     expect(() => decodeModel('!!!not-base64!!!')).toThrow(/Invalid model link/);
     expect(() => decodeModel('')).toThrow(/Invalid model link/);
+  });
+});
+
+describe('parsePermalinkHash', () => {
+  it('returns null for an empty or unrelated hash', () => {
+    expect(parsePermalinkHash('')).toBeNull();
+    expect(parsePermalinkHash('#some-other-tool-state')).toBeNull();
+  });
+
+  it('decodes a prefixed payload', () => {
+    const hash = `#m=${encodeModel(MODEL)}`;
+    expect(parsePermalinkHash(hash)).toEqual(MODEL);
+  });
+
+  it('throws on a prefixed but corrupt payload', () => {
+    expect(() => parsePermalinkHash('#m=corrupt!!')).toThrow(/Invalid model link/);
   });
 });

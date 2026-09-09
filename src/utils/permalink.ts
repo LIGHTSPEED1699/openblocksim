@@ -67,3 +67,8 @@ export function decodeModel(payload: string): ExportedModel {
   }
   return model;
 }
+
+export function parsePermalinkHash(hash: string): ExportedModel | null {
+  if (!hash.startsWith(PERMALINK_HASH_PREFIX)) return null;
+  return decodeModel(hash.slice(PERMALINK_HASH_PREFIX.length));
+}
