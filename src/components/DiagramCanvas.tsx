@@ -163,7 +163,6 @@ export function DiagramCanvas() {
   const setEdges = useDiagramStore((s) => s.setEdges);
   const selectBlock = useDiagramStore((s) => s.selectBlock);
   const addNode = useDiagramStore((s) => s.addNode);
-  const removeNode = useDiagramStore((s) => s.removeNode);
   const theme = useDiagramStore((s) => s.theme);
   const { screenToFlowPosition, getNode } = useReactFlow();
   const [wireActive, setWireActive] = useState(false);
@@ -209,9 +208,23 @@ export function DiagramCanvas() {
   const handleWireComplete = useCallback(() => setWireActive(false), []);
   const handleWireCancel = useCallback(() => setWireActive(false), []);
 
+  const handleDragBegin = useCallback(() => {
+    useDiagramStore.getState().beginCoalesce();
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    useDiagramStore.getState().endCoalesce();
+  }, []);
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setNodes(applyNodeChanges(changes, nodes) as Node[]);
+      // A drag ends with one final position change carrying dragging:false —
+      // this fires even for aborted drags, so close the coalesce window here.
+      const dragStopped = changes.some(
+        (c) => c.type === 'position' && c.dragging === false,
+      );
+      if (dragStopped) useDiagramStore.getState().endCoalesce();
     },
     [nodes, setNodes]
   );
@@ -251,9 +264,13 @@ export function DiagramCanvas() {
 
   const onNodesDelete = useCallback(
     (deletedNodes: Node[]) => {
-      deletedNodes.forEach((node) => removeNode(node.id));
+      if (deletedNodes.length === 0) return;
+      const store = useDiagramStore.getState();
+      store.beginCoalesce();
+      deletedNodes.forEach((node) => store.removeNode(node.id));
+      store.endCoalesce();
     },
-    [removeNode]
+    []
   );
 
   return (
@@ -269,6 +286,10 @@ export function DiagramCanvas() {
         onReconnect={onReconnect}
         onNodeClick={(_, node) => selectBlock(node.id)}
         onNodesDelete={onNodesDelete}
+        onNodeDragStart={handleDragBegin}
+        onNodeDragStop={handleDragEnd}
+        onSelectionDragStart={handleDragBegin}
+        onSelectionDragStop={handleDragEnd}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         deleteKeyCode={['Backspace', 'Delete']}
