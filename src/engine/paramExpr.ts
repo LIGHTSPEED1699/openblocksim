@@ -1,6 +1,6 @@
 export const EXPR_PREFIX = '=';
 
-export function isExpressionValue(value: unknown): boolean {
+export function isExpressionValue(value: unknown): value is string {
   return typeof value === 'string' && value.startsWith(EXPR_PREFIX);
 }
 
