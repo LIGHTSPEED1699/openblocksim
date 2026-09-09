@@ -6,6 +6,7 @@ import {
   insertWaypoint,
   translateSegment,
   removeWaypoint,
+  moveWaypoint,
   isBackwardEdge,
   nodePortPosition,
   computeFeedbackRoute,
@@ -322,6 +323,46 @@ describe('nodePortPosition', () => {
     expect(nodePortPosition(node, 0, 1, true).x).toBe(220);
     expect(nodePortPosition(node, 0, 1, false).x).toBe(100);
     expect(nodePortPosition(node, 0, 1, true, false).x).toBe(220);
+  });
+});
+
+describe('moveWaypoint', () => {
+  const wp: XYPosition[] = [
+    { x: 10, y: 10 },
+    { x: 100, y: 10 },
+    { x: 100, y: 100 },
+    { x: 200, y: 100 },
+  ];
+
+  it('replaces the target waypoint and keeps order', () => {
+    const result = moveWaypoint(wp, 1, { x: 150, y: 40 });
+    expect(result).toHaveLength(4);
+    expect(result[0]).toEqual({ x: 10, y: 10 });
+    expect(result[1]).toEqual({ x: 150, y: 40 });
+    expect(result[2]).toEqual({ x: 100, y: 100 });
+    expect(result[3]).toEqual({ x: 200, y: 100 });
+  });
+
+  it('moves the first and last stored waypoint', () => {
+    expect(moveWaypoint(wp, 0, { x: 0, y: 0 })[0]).toEqual({ x: 0, y: 0 });
+    expect(moveWaypoint(wp, 3, { x: 300, y: 100 })[3]).toEqual({ x: 300, y: 100 });
+  });
+
+  it('does not mutate the input array', () => {
+    const copy = wp.map((p) => ({ ...p }));
+    moveWaypoint(wp, 2, { x: 999, y: 999 });
+    expect(wp).toEqual(copy);
+  });
+
+  it('keeps the rendered path orthogonal via expandPoints elbows', () => {
+    // wp[1] moves to a non-axis-aligned spot relative to its neighbors
+    // (100,10)→(140,70)→(100,100); expandPoints inserts the elbows.
+    const moved = moveWaypoint(wp, 1, { x: 140, y: 70 });
+    const V = expandPoints(moved, { x: 10, y: 10 }, { x: 200, y: 100 });
+    for (let i = 0; i < V.length - 1; i++) {
+      const a = V[i]; const b = V[i + 1];
+      expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true);
+    }
   });
 });
 

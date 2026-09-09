@@ -119,6 +119,20 @@ export function removeWaypoint(
   return waypoints.filter((_, i) => i !== waypointIndex);
 }
 
+/**
+ * Replace a single stored waypoint with a new position (returns a copy).
+ * The new point may be off-axis from its neighbors: expandPoints inserts
+ * orthogonal elbows for any diagonal consecutive pair, so the rendered path
+ * stays orthogonal. Feature H R-H3 — direct waypoint-dot dragging.
+ */
+export function moveWaypoint(
+  waypoints: XYPosition[],
+  waypointIndex: number,
+  pos: XYPosition,
+): XYPosition[] {
+  return waypoints.map((v, i) => (i === waypointIndex ? { x: pos.x, y: pos.y } : v));
+}
+
 export function isBackwardEdge(
   sourceNode: { position: { x: number; y: number } },
   targetNode: { position: { x: number; y: number } },
