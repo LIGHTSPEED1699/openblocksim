@@ -23,6 +23,9 @@ export function solve(
     );
   }
 
+  const wallStart = Date.now();
+  let rhsEvals = 0;
+
   const time: number[] = new Array(numSteps + 1);
   const scopes: Record<string, number[]> = {};
   for (const scopeId of model.scopeBlockIds) {
@@ -73,6 +76,7 @@ export function solve(
     const k2 = model.f(t + dt / 2, state.map((s, i) => s + (dt / 2) * k1[i]));
     const k3 = model.f(t + dt / 2, state.map((s, i) => s + (dt / 2) * k2[i]));
     const k4 = model.f(t + dt, state.map((s, i) => s + dt * k3[i]));
+    rhsEvals += 4;
 
     for (let i = 0; i < state.length; i++) {
       state[i] += (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
@@ -126,6 +130,14 @@ export function solve(
     time,
     traces: {},
     scopes,
+    stats: {
+      acceptedSteps: numSteps,
+      rejectedSteps: 0,
+      minStep: dt,
+      maxStep: dt,
+      rhsEvals,
+      wallMs: Date.now() - wallStart,
+    },
   };
 }
 
@@ -419,6 +431,7 @@ export function solveBDF(
   let actualSteps = 0;
   let minStep = dt;
   let maxStep = dt;
+  let rhsEvals = 0;
 
   time[0] = t;
 
@@ -464,6 +477,7 @@ export function solveBDF(
 
       for (let iter = 0; iter < BDF_NEWTON_MAX_ITER; iter++) {
         const fNext = model.f(t + hTry, x);
+        rhsEvals++;
         const R = x.map((xi, i) => xi - state[i] - hTry * fNext[i]);
         const rNorm = Math.sqrt(R.reduce((s, r) => s + r * r, 0)) / Math.max(n, 1);
 
@@ -479,6 +493,7 @@ export function solveBDF(
           const xPert = [...x];
           xPert[j] += eps;
           const fPert = model.f(t + hTry, xPert);
+          rhsEvals++;
           J.push(fPert.map((fp, i) => (fp - fNext[i]) / eps));
         }
         // J[j] is df/dx_j as column vector; build matrix M = I - h*df/dx
@@ -559,7 +574,7 @@ export function solveBDF(
     rejectedSteps: 0,
     minStep: actualSteps > 0 ? minStep : 0,
     maxStep: actualSteps > 0 ? maxStep : 0,
-    rhsEvals: 0,
+    rhsEvals,
     wallMs: Date.now() - wallStart,
   };
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Node, Edge } from '@xyflow/react';
 import { BlockType, Params } from '../blocks/types';
+import type { SolverStats } from '../engine/types';
 
 interface SimConfig {
   dt: number;
@@ -15,6 +16,9 @@ interface SimConfig {
 interface SimResults {
   time: number[];
   scopes: Record<string, number[]>;
+  stats?: SolverStats;
+  actualSteps?: number;
+  crossingTimes?: number[];
 }
 
 interface DiagramState {
