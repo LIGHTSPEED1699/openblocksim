@@ -8,11 +8,13 @@ import { Toolbar } from './components/Toolbar';
 import { UndoRedoShortcuts } from './components/UndoRedoShortcuts';
 import { PlotArea } from './components/PlotArea';
 import { exportModel, importModel, loadModel } from './utils/exportImport';
+import { parsePermalinkHash, buildShareUrl, copyText } from './utils/permalink';
 import { importSimulinkModel } from './utils/simulinkImport';
 import { exportDiagramSvg, exportDiagramPng, type ExportableNode, type ExportableEdge } from './utils/exportDiagram';
 import { EXAMPLES } from './examples';
 import type { WorkerMessage } from './engine/types';
 import type { BlockType } from './blocks/types';
+import type { ExportedModel } from './utils/exportImport';
 
 function parsePort(handle: string | null | undefined): number {
   if (!handle) return 0;
@@ -45,10 +47,22 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [runStatus, setRunStatus] = useState<string | null>(null);
   const [runRevision, setRunRevision] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  // S2 permalink: if the URL carries a #m=<payload>, load that model once on boot.
+  useEffect(() => {
+    try {
+      const model = parsePermalinkHash(window.location.hash);
+      if (model) loadModel(model);
+    } catch (err) {
+      setSimError(`Invalid shared link: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!showNewMenu) return;
@@ -184,6 +198,37 @@ export default function App() {
       await exportDiagramPng(canvas, 'diagram.png');
     } catch (err) {
       setSimError(`PNG export failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const store = useDiagramStore.getState();
+    if (store.nodes.length === 0) {
+      setSimError('Nothing to share — the canvas is empty.');
+      return;
+    }
+    const model: ExportedModel = {
+      blocks: store.nodes.map((n) => ({
+        id: n.id,
+        type: n.data?.type as BlockType,
+        params: store.params[n.id] ?? {},
+        position: n.position,
+      })),
+      edges: store.edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        sourcePort: parsePort(e.sourceHandle),
+        target: e.target,
+        targetPort: parsePort(e.targetHandle),
+      })),
+      simConfig: store.simConfig,
+    };
+    try {
+      await copyText(buildShareUrl(model));
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setSimError('Could not copy link — copy the URL manually.');
     }
   };
 
@@ -329,6 +374,12 @@ export default function App() {
             </div>
           )}
         </div>
+        <button
+          onClick={handleCopyLink}
+          className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded hover:opacity-80"
+        >
+          {linkCopied ? 'Link copied!' : 'Copy Link'}
+        </button>
         <div className="flex-1" />
         <a
           href="https://hongbinli.ca/tools/"
