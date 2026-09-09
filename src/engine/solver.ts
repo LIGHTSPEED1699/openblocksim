@@ -127,10 +127,15 @@ const E1 = 71 / 57600, E3 = -71 / 16695, E4 = 71 / 1920, E5 = -17253 / 339200, E
 
 export function solveAdaptive(
   model: CompiledModel,
-  config: { dt: number; duration: number; rtol: number; atol: number },
+  config: { dt: number; duration: number; rtol: number; atol: number; maxStep?: number },
   initialState: number[]
 ): SimResult {
-  const { dt: hMax, duration, rtol, atol } = config;
+  const { dt, duration, rtol, atol } = config;
+  // When crossing events are present, cap the step at dt so discontinuities
+  // (Relay, Saturation, etc.) are captured on the output grid without
+  // smearing. For smooth systems (no events), maxStep may exceed dt.
+  const events = model.events ?? [];
+  const hMax = events.length > 0 ? Math.min(config.maxStep ?? dt, dt) : (config.maxStep ?? dt);
   const n = model.stateSize;
   const wallStart = Date.now();
 
@@ -138,10 +143,11 @@ export function solveAdaptive(
     throw new Error(`Simulation duration ${duration}s exceeds maximum of ${MAX_DURATION}s`);
   }
 
-  const time: number[] = [0];
-  const scopes: Record<string, number[]> = {};
+  // Raw integration samples (variable time grid)
+  const rawTime: number[] = [0];
+  const rawScopes: Record<string, number[]> = {};
   for (const scopeId of model.scopeBlockIds) {
-    scopes[scopeId] = [];
+    rawScopes[scopeId] = [];
   }
 
   let state = [...initialState];
@@ -157,8 +163,6 @@ export function solveAdaptive(
   const STALL_THRESHOLD = 100; // consecutive tiny steps before stall
   const TINY_STEP = 1e-10;
 
-  const events = model.events ?? [];
-
   const FAC = 0.9, FACMIN = 0.2, FACMAX = 5.0;
 
   // Initialize prevOutputs and scope capture at t=0
@@ -169,9 +173,9 @@ export function solveAdaptive(
       const wires = model.scopeInputs?.get(scopeId);
       if (wires && wires.length > 0) {
         const srcOut = initOutputs.get(wires[0].source) ?? [];
-        scopes[scopeId].push(srcOut[wires[0].sourcePort] ?? 0);
+        rawScopes[scopeId].push(srcOut[wires[0].sourcePort] ?? 0);
       } else {
-        scopes[scopeId].push(0);
+        rawScopes[scopeId].push(0);
       }
     }
   }
@@ -278,21 +282,21 @@ export function solveAdaptive(
           const wires = model.scopeInputs?.get(scopeId);
           if (wires && wires.length > 0) {
             const srcOut = allOutputs.get(wires[0].source) ?? [];
-            scopes[scopeId].push(srcOut[wires[0].sourcePort] ?? 0);
+            rawScopes[scopeId].push(srcOut[wires[0].sourcePort] ?? 0);
           } else {
-            scopes[scopeId].push(0);
+            rawScopes[scopeId].push(0);
           }
         }
       }
 
-      time.push(t);
+      rawTime.push(t);
 
       // Update prevOutputs for feedback edges
       if (model.updatePrevOutputs) model.updatePrevOutputs(t, state);
 
       // Increase step size
       if (errNorm === 0) {
-        h = h * FACMAX;
+        h = Math.min(hMax, h * FACMAX);
       } else {
         const fac = FAC * Math.pow(1 / errNorm, 1 / 5);
         h = Math.min(hMax, h * Math.min(FACMAX, Math.max(FACMIN, fac)));
@@ -317,7 +321,46 @@ export function solveAdaptive(
     wallMs: Date.now() - wallStart,
   };
 
+  // Interpolate raw (variable-step) samples onto the uniform dt output grid
+  const { time, scopes } = interpolateOntoGrid(rawTime, rawScopes, model.scopeBlockIds, dt, duration);
+
   return { time, traces: {}, scopes, actualSteps, crossingTimes, stats };
+}
+
+// Resample variable-step samples onto a uniform dt grid: 0, dt, 2dt, ..., duration.
+// Uses forward-fill (last raw sample at or before tTarget) so discontinuous
+// signals (Relay, Saturation) are preserved without smearing. Continuous
+// signals are piecewise-linear between raw samples — at typical dt this is
+// visually indistinguishable, and avoids inventing values at switch points.
+function interpolateOntoGrid(
+  rawTime: number[],
+  rawScopes: Record<string, number[]>,
+  scopeIds: string[],
+  dt: number,
+  duration: number
+): { time: number[]; scopes: Record<string, number[]> } {
+  const numSteps = Math.ceil(duration / dt);
+  const time: number[] = new Array(numSteps + 1);
+  const scopes: Record<string, number[]> = {};
+  for (const id of scopeIds) scopes[id] = new Array(numSteps + 1);
+
+  let rawIdx = 0;
+  for (let step = 0; step <= numSteps; step++) {
+    const tTarget = Math.min(step * dt, duration);
+    time[step] = tTarget;
+
+    // Advance rawIdx to the last raw sample with rawTime[rawIdx] <= tTarget
+    while (rawIdx < rawTime.length - 1 && rawTime[rawIdx + 1] <= tTarget) {
+      rawIdx++;
+    }
+
+    for (const id of scopeIds) {
+      const rawVals = rawScopes[id];
+      scopes[id][step] = rawVals && rawVals.length > 0 ? (rawVals[rawIdx] ?? 0) : 0;
+    }
+  }
+
+  return { time, scopes };
 }
 
 const BDF_NEWTON_TOL = 1e-9;

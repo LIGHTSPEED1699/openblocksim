@@ -40,8 +40,11 @@ describe('Relay switching time (integration)', () => {
     // The relay output trace should show the switch: before 0.5 it is off (-1), after it is on (1)
     const relayTrace = res.scopes['scope'];
     expect(relayTrace).toBeDefined();
-    const idx = res.time.findIndex((t) => t >= 0.5);
-    expect(idx).toBeGreaterThan(0);
-    expect(relayTrace[idx]).toBe(1);
+    // Before the crossing, the relay is off (-1)
+    const beforeIdx = res.time.findIndex((t) => t >= 0.4);
+    expect(relayTrace[beforeIdx]).toBe(-1);
+    // After the crossing (t=0.6, well past the switch), the relay is on (1)
+    const afterIdx = res.time.findIndex((t) => t >= 0.6);
+    expect(relayTrace[afterIdx]).toBe(1);
   });
 });

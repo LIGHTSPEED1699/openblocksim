@@ -122,7 +122,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
     if (solverType === 'adaptive') {
       const rtol = msg.rtol ?? 1e-4;
       const atol = msg.atol ?? 1e-6;
-      result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol }, new Array(model.stateSize).fill(0));
+      result = solveAdaptive(model, { dt: msg.dt, duration: msg.duration, rtol, atol, maxStep: msg.maxStep }, new Array(model.stateSize).fill(0));
     } else if (solverType === 'bdf') {
       result = solveBDF(model, { dt: msg.dt, duration: msg.duration, solverType: 'bdf', rtol: msg.rtol, atol: msg.atol }, new Array(model.stateSize).fill(0));
     } else {
