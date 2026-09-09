@@ -5,6 +5,9 @@ import { BlockType, Params } from '../blocks/types';
 import type { SolverStats } from '../engine/types';
 import { pushEntry, sameDoc, snapshotDoc, type DiagramDoc, type HistoryEntry } from './history';
 import { GroupBox, GroupBoxRect, GROUP_BOX_COLORS, GROUP_BOX_MIN_WIDTH, GROUP_BOX_MIN_HEIGHT, groupMemberIds } from '../utils/groups';
+import { subsystemizeGroup } from '../utils/subsystemize';
+
+type SerializedGraphLike = { blocks: { id: string; type: unknown; params: unknown; position: unknown }[]; edges: unknown[] };
 
 interface SimConfig {
   dt: number;
@@ -34,6 +37,8 @@ interface DiagramState {
   theme: 'dark' | 'light';
   groups: GroupBox[];
   selectedGroupId: string | null;
+  /** Subsystem editor (session-transient — excluded from persist via partialize). */
+  editingSubsystemId: string | null;
 
   /** Undo/redo history (session-transient — excluded from persist via partialize). */
   past: HistoryEntry[];
@@ -53,6 +58,8 @@ interface DiagramState {
   moveGroupTo: (id: string, x: number, y: number) => void;
   resizeGroup: (id: string, patch: Partial<GroupBoxRect>) => void;
   deleteGroup: (id: string) => void;
+  convertGroupToSubsystem: (groupId: string) => void;
+  setEditingSubsystem: (id: string | null) => void;
   selectGroup: (id: string | null) => void;
   setSimResults: (results: SimResults | null) => void;
   setSimError: (error: string | null) => void;
@@ -130,6 +137,7 @@ export const useDiagramStore = create<DiagramState>()(
         theme: 'dark',
         groups: [],
         selectedGroupId: null,
+        editingSubsystemId: null,
         past: [],
         future: [],
         canUndo: false,
@@ -261,11 +269,40 @@ export const useDiagramStore = create<DiagramState>()(
           });
           recordMutation(before, currentDoc());
         },
+        convertGroupToSubsystem: (groupId) => {
+          const before = currentDoc();
+          set((state) => {
+            const group = state.groups.find((g) => g.id === groupId);
+            if (!group) return state;
+            const members = new Set(groupMemberIds(group, state.nodes));
+            const res = subsystemizeGroup(group, state.nodes, state.edges);
+            // The fold is params-free (nodes carry only data.type); merge the
+            // store's real member params in before persisting the inner graph.
+            const withParams = (() => {
+              const parsed = JSON.parse(res.subsystemJson) as SerializedGraphLike;
+              parsed.blocks = parsed.blocks.map((b) => ({ ...b, params: state.params[b.id] ?? b.params }));
+              return JSON.stringify(parsed);
+            })();
+            return {
+              groups: state.groups.filter((g) => g.id !== groupId),
+              nodes: res.newNodes,
+              edges: res.newEdges,
+              params: {
+                ...Object.fromEntries(Object.entries(state.params).filter(([k]) => !members.has(k))),
+                [res.subsystemNode.id]: { subsystem: withParams },
+              },
+              selectedGroupId: null,
+              selectedBlockId: null,
+            };
+          });
+          recordMutation(before, currentDoc());
+        },
         selectGroup: (id) => {
           const before = currentDoc();
           set((state) => ({ selectedGroupId: id, selectedBlockId: id === null ? state.selectedBlockId : null }));
           recordMutation(before, currentDoc());
         },
+        setEditingSubsystem: (id) => set({ editingSubsystemId: id }),
         setSimResults: (results) => set({ simResults: results, simError: null }),
         setSimError: (error) => set({ simError: error, simResults: null }),
         setSimConfig: (config) =>
@@ -274,7 +311,7 @@ export const useDiagramStore = create<DiagramState>()(
         clear: () =>
           set({
             nodes: [], edges: [], params: {}, selectedBlockId: null,
-            groups: [], selectedGroupId: null,
+            groups: [], selectedGroupId: null, editingSubsystemId: null,
             simResults: null, simError: null,
             past: [], future: [], canUndo: false, canRedo: false,
           }),

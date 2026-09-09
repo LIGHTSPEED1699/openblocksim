@@ -53,7 +53,11 @@ import { RandomNumber } from '../blocks/sources/RandomNumber';
 import { Terminator } from '../blocks/sinks/Terminator';
 import { Display } from '../blocks/sinks/Display';
 import { StopSimulation } from '../blocks/sinks/StopSimulation';
+import { Inport } from '../blocks/routing/Inport';
+import { Outport } from '../blocks/routing/Outport';
+import { Subsystem } from '../blocks/annotation/Subsystem';
 import type { WorkerMessage } from './types';
+import { flattenGraph } from './subsystems';
 
 function createRegistry(): BlockRegistry {
   const r = new BlockRegistry();
@@ -107,6 +111,9 @@ function createRegistry(): BlockRegistry {
   r.register(BlockType.Terminator, Terminator);
   r.register(BlockType.Display, Display);
   r.register(BlockType.StopSimulation, StopSimulation);
+  r.register(BlockType.Inport, Inport);
+  r.register(BlockType.Outport, Outport);
+  r.register(BlockType.Subsystem, Subsystem);
   return r;
 }
 
@@ -115,18 +122,18 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
   if (msg.type !== 'run') return;
 
   const registry = createRegistry();
-  const validation = validateGraph(msg.graph, registry);
-  if (!validation.valid) {
-    const errorMsg: WorkerMessage = {
-      type: 'error',
-      message: validation.errors.join('; '),
-    };
-    (self as any).postMessage(errorMsg);
-    return;
-  }
-
   try {
-    const model = compileGraph(msg.graph, registry, msg.dt);
+    const flat = flattenGraph(msg.graph);
+    const validation = validateGraph(flat, registry);
+    if (!validation.valid) {
+      const errorMsg: WorkerMessage = {
+        type: 'error',
+        message: validation.errors.join('; '),
+      };
+      (self as any).postMessage(errorMsg);
+      return;
+    }
+    const model = compileGraph(flat, registry, msg.dt);
     const solverType = msg.solverType ?? 'fixed';
     let result;
     if (solverType === 'adaptive') {

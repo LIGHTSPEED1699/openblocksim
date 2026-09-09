@@ -17,6 +17,12 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
   dragging a box moves its contained nodes, deleting a box (with confirmation) deletes
   its contents, and membership follows geometry (a node whose top-left corner is inside
   the box). Boxes are saved in the model JSON (`groups`) and survive export/import.
+- **Subsystems (hierarchical blocks)** — a Subsystem block encapsulates an inner diagram
+  behind parent input/output ports; inner Inport/Outport blocks define the ports, inner
+  diagrams are edited by double-clicking the block (Save/Cancel), and the engine flattens
+  the hierarchy before solving, so algebraic loops, events, sample times and all solvers
+  work inside subsystems. Convert any grouping box to a subsystem (⇥ button). Inner diagrams
+  are stored in the model JSON (params.subsystem) and round-trip through export/import.
 - **Semantic port labels** (u/y/in1/in2) rendered from BlockMeta on every block
 - **Node flip** (F key or right-click → Flip) — mirrors a node and swaps its input/output handle sides
 - **Draggable wire waypoints** — drag any edge to bend it, drag waypoint dots to re-route, double-click a dot to delete; waypoints persist in the model JSON
