@@ -94,6 +94,8 @@ export function StraightEdge({
       const segmentIndex = hitTestSegment(currentV, flowPos, threshold);
       if (segmentIndex === null) return;
 
+      useDiagramStore.getState().beginCoalesce();
+
       const a = currentV[segmentIndex];
       const b = currentV[segmentIndex + 1];
       const isHorizontal = Math.abs(a.y - b.y) < 0.5;
@@ -172,6 +174,7 @@ export function StraightEdge({
 
   const onPointerUp = useCallback(() => {
     dragRef.current = null;
+    useDiagramStore.getState().endCoalesce();
   }, []);
 
   const onWaypointDoubleClick = useCallback(

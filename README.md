@@ -12,6 +12,7 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 - **React Flow** drag-and-drop diagram editor with custom color-coded nodes
 - **Plotly.js** real-time scope widgets
 - **Zustand** state management with localStorage auto-save
+- **Undo/redo** for diagram edits — add/move/delete/param-edit (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, session-transient history)
 - **JSON export/import** for saving and sharing models
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere

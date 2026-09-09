@@ -17,9 +17,13 @@ interface Props {
   onAtolChange?: (atol: number) => void;
   onExportSvg?: () => void;
   onExportPng?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
-export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationChange, theme, onToggleTheme, isRunning, runStatus, solverType = 'fixed', onSolverTypeChange, rtol = 1e-4, atol = 1e-6, onRtolChange, onAtolChange, onExportSvg, onExportPng }: Props) {
+export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationChange, theme, onToggleTheme, isRunning, runStatus, solverType = 'fixed', onSolverTypeChange, rtol = 1e-4, atol = 1e-6, onRtolChange, onAtolChange, onExportSvg, onExportPng, onUndo, onRedo, canUndo = false, canRedo = false }: Props) {
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
       <button
@@ -38,6 +42,22 @@ export function Toolbar({ onRun, onReset, dt, duration, onDtChange, onDurationCh
         className="px-3 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm hover:opacity-80 active:scale-95"
       >
         Reset
+      </button>
+      <button
+        onClick={onUndo}
+        disabled={!canUndo}
+        title="Undo (Ctrl+Z)"
+        className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Undo
+      </button>
+      <button
+        onClick={onRedo}
+        disabled={!canRedo}
+        title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+        className="px-2 py-1 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-sm hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Redo
       </button>
       {runStatus && (
         <span className="text-xs text-[var(--text-secondary)] animate-pulse">
