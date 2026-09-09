@@ -208,6 +208,45 @@ function ArrayInput({ label, value, onCommit }: {
   );
 }
 
+const EXPR_PREFIX = '=';
+
+/** Numeric param input that accepts plain numbers or "="-prefixed JS expressions.
+ *  Plain numbers commit parseFloat(...) live (existing behavior); expressions are
+ *  stored verbatim and resolved by the engine at run start. */
+function NumberField({ label, value, onCommit }: {
+  label: string;
+  value: number | string;
+  onCommit: (v: number | string) => void;
+}) {
+  const initial = typeof value === 'string' ? value : String(value);
+  const [text, setText] = useState(initial);
+  // Resync when the selected block changes or external value changes
+  useEffect(() => { setText(initial); }, [initial]);
+
+  return (
+    <div className="mb-3">
+      <label className="block text-xs text-[var(--text-secondary)] mb-1">{label}</label>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={text}
+        onChange={(e) => {
+          const t = e.target.value;
+          setText(t);
+          if (t.startsWith(EXPR_PREFIX)) {
+            onCommit(t);
+            return;
+          }
+          const n = parseFloat(t);
+          if (!Number.isNaN(n)) onCommit(n);
+        }}
+        placeholder="number, or =expr"
+        className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
+      />
+    </div>
+  );
+}
+
 export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }: Props) {
   if (!selectedBlockId || !blockType) {
     return (
@@ -226,18 +265,12 @@ export function ParameterPanel({ selectedBlockId, blockType, params, onUpdate }:
         const value = params[key] ?? paramSpec.default;
         if (paramSpec.type === 'number') {
           return (
-            <div key={key} className="mb-3">
-              <label className="block text-xs text-[var(--text-secondary)] mb-1">{paramSpec.label}</label>
-              <input
-                type="number"
-                value={value as number}
-                min={paramSpec.min}
-                max={paramSpec.max}
-                step={paramSpec.step ?? 'any'}
-                onChange={(e) => onUpdate(selectedBlockId, { [key]: parseFloat(e.target.value) })}
-                className="w-full bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded px-2 py-1 text-sm border border-[var(--border-color)]"
-              />
-            </div>
+            <NumberField
+              key={key}
+              label={paramSpec.label}
+              value={value as number | string}
+              onCommit={(v) => onUpdate(selectedBlockId, { [key]: v })}
+            />
           );
         }
         if (paramSpec.type === 'array') {
