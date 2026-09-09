@@ -307,6 +307,22 @@ describe('nodePortPosition', () => {
     expect(pos.x).toBe(100);
     expect(pos.y).toBe(20); // (1/2)*40
   });
+
+  it('flipped source port sits on the left edge', () => {
+    const pos = nodePortPosition(node, 0, 1, true, true);
+    expect(pos.x).toBe(100); // position.x, not position.x + width
+  });
+
+  it('flipped target port sits on the right edge', () => {
+    const pos = nodePortPosition(node, 0, 1, false, true);
+    expect(pos.x).toBe(220); // 100 + 120
+  });
+
+  it('default flipped=false keeps legacy behavior', () => {
+    expect(nodePortPosition(node, 0, 1, true).x).toBe(220);
+    expect(nodePortPosition(node, 0, 1, false).x).toBe(100);
+    expect(nodePortPosition(node, 0, 1, true, false).x).toBe(220);
+  });
 });
 
 describe('computeFeedbackRoute', () => {

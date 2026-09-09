@@ -26,6 +26,7 @@ export function ConnectionPreview(_props: ConnectionLineComponentProps) {
     srcPortIndex,
     (srcNode.data as any)?.outputs ?? 1,
     true,
+    Boolean((srcNode.data as any)?.flipped),
   );
 
   const cursor = gesture.cursor ?? sourcePort;

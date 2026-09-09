@@ -134,10 +134,14 @@ export function nodePortPosition(
   portIndex: number,
   totalPorts: number,
   isSource: boolean,
+  flipped: boolean = false,
 ): XYPosition {
   const w = node.measured?.width ?? 100;
   const h = node.measured?.height ?? 40;
-  const x = isSource ? node.position.x + w : node.position.x;
+  // Right edge when isSource !== flipped:
+  //   unflipped → source right, target left; flipped → source left, target right.
+  const onRight = isSource !== flipped;
+  const x = onRight ? node.position.x + w : node.position.x;
   const y = node.position.y + ((portIndex + 1) / (totalPorts + 1)) * h;
   return { x, y };
 }
