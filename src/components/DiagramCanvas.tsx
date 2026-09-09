@@ -59,6 +59,8 @@ import { MathFunction } from '../blocks/math/MathFunction';
 import { TrigFunction } from '../blocks/math/TrigFunction';
 import { Interpolate } from '../blocks/math/Interpolate';
 import { Switch } from '../blocks/routing/Switch';
+import { Mux } from '../blocks/routing/Mux';
+import { Demux } from '../blocks/routing/Demux';
 import { UnitDelay } from '../blocks/discrete/UnitDelay';
 import { DiscreteIntegrator } from '../blocks/discrete/DiscreteIntegrator';
 import { DiscreteTransferFcn } from '../blocks/discrete/DiscreteTransferFcn';
@@ -110,6 +112,8 @@ const FACTORIES: Record<BlockType, BlockFactory> = {
   [BlockType.TrigFunction]: TrigFunction,
   [BlockType.Interpolate]: Interpolate,
   [BlockType.Switch]: Switch,
+  [BlockType.Mux]: Mux,
+  [BlockType.Demux]: Demux,
   [BlockType.UnitDelay]: UnitDelay,
   [BlockType.DiscreteIntegrator]: DiscreteIntegrator,
   [BlockType.DiscreteTransferFcn]: DiscreteTransferFcn,

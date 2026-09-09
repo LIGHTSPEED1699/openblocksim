@@ -29,6 +29,8 @@ export enum BlockType {
   MathFunction = 'MathFunction',
   TrigFunction = 'TrigFunction',
   Interpolate = 'Interpolate',
+  Mux = 'Mux',
+  Demux = 'Demux',
   Switch = 'Switch',
   UnitDelay = 'UnitDelay',
   DiscreteIntegrator = 'DiscreteIntegrator',
@@ -79,6 +81,7 @@ export interface Block {
   category: BlockCategory;
   inputs: number;
   outputs: number;
+  outputSize?: number;
   isDynamic: boolean;
   stateSize: number;
   stateUpdateMode: 'derivative' | 'absolute';

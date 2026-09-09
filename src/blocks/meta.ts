@@ -90,6 +90,8 @@ const meta: Record<BlockType, BlockMetaEntry> = {
   [BlockType.Switch]: { type: BlockType.Switch, category: 'Routing', math: '\\text{switch}', doc: 'Switch between inputs based on condition', paramSpec: { threshold: { type: 'number', default: 0, label: 'Threshold' }, condition: { type: 'select', default: 'u2>=threshold', label: 'Condition' } },
     eventG: () => [],
   },
+  [BlockType.Mux]: { type: BlockType.Mux, category: 'Routing', math: '\\text{mux}', doc: 'Combine scalar inputs into a vector bus', paramSpec: { inputCount: { type: 'number', default: 2, min: 2, max: 8, step: 1, label: 'Input Count' } } },
+  [BlockType.Demux]: { type: BlockType.Demux, category: 'Routing', math: '\\text{demux}', doc: 'Split a vector bus into component signals', paramSpec: { outputCount: { type: 'number', default: 2, min: 1, max: 8, step: 1, label: 'Output Count' } } },
 
   // ── Annotation ──
   [BlockType.Comment]: { type: BlockType.Comment, category: 'Annotation', doc: 'Annotation text block', paramSpec: { text: { type: 'text', default: 'Double-click to edit', label: 'Text' } } },

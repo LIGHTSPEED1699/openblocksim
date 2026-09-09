@@ -99,6 +99,12 @@ const PARAM_SPECS: Record<BlockType, ParamSpec> = {
     threshold: { type: 'number', default: 0, label: 'Threshold' },
     condition: { type: 'select', default: 'u2>=threshold', label: 'Condition' },
   },
+  [BlockType.Mux]: {
+    inputCount: { type: 'number', default: 2, min: 2, max: 8, step: 1, label: 'Input Count' },
+  },
+  [BlockType.Demux]: {
+    outputCount: { type: 'number', default: 2, min: 1, max: 8, step: 1, label: 'Output Count' },
+  },
   [BlockType.UnitDelay]: {
     initialValue: { type: 'number', default: 0, label: 'Initial Value' },
     sampleTime: { type: 'number', default: 0, min: 0, step: 0.01, label: 'Sample Time (s, 0 = every step)' },

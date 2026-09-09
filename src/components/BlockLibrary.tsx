@@ -22,6 +22,8 @@ const ICONS: Record<BlockType, string> = {
   [BlockType.PID]: 'PID',
   [BlockType.Relay]: '⇌',
   [BlockType.Switch]: '⚙',
+  [BlockType.Mux]: 'Mux',
+  [BlockType.Demux]: 'Demux',
   [BlockType.UnitDelay]: 'z⁻¹',
   [BlockType.DiscreteIntegrator]: 'Σd',
   [BlockType.DiscreteTransferFcn]: 'G(z)',
@@ -58,7 +60,7 @@ const BLOCK_GROUPS: { label: string; accent: string; blocks: BlockType[] }[] = [
   { label: 'Discrete', accent: 'border-l-indigo-500', blocks: [BlockType.UnitDelay, BlockType.DiscreteIntegrator, BlockType.DiscreteTransferFcn, BlockType.Memory] },
   { label: 'Nonlinear', accent: 'border-l-red-500', blocks: [BlockType.Saturation, BlockType.Deadzone, BlockType.RateLimiter, BlockType.Quantizer, BlockType.Backlash] },
   { label: 'Control', accent: 'border-l-teal-500', blocks: [BlockType.PID, BlockType.Relay] },
-  { label: 'Routing', accent: 'border-l-cyan-500', blocks: [BlockType.Switch] },
+  { label: 'Routing', accent: 'border-l-cyan-500', blocks: [BlockType.Mux, BlockType.Demux, BlockType.Switch] },
   { label: 'Annotation', accent: 'border-l-amber-500', blocks: [BlockType.Comment] },
 ];
 
