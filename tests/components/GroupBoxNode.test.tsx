@@ -75,6 +75,26 @@ describe('GroupBoxNode', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders a convert-to-subsystem button when selected', () => {
+    render(<GroupBoxNode {...nodeProps({ selected: true })} />);
+    expect(screen.getByRole('button', { name: /Convert Group 1 to subsystem/i })).toBeInTheDocument();
+  });
+
+  it('does not render the convert button when not selected', () => {
+    render(<GroupBoxNode {...nodeProps({ selected: false })} />);
+    expect(screen.queryByRole('button', { name: /Convert Group 1 to subsystem/i })).toBeNull();
+  });
+
+  it('converts the box and its members into a subsystem node on convert click', () => {
+    render(<GroupBoxNode {...nodeProps({ selected: true })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Convert Group 1 to subsystem/i }));
+    const state = useDiagramStore.getState();
+    expect(state.groups).toHaveLength(0);
+    expect(state.nodes.find((n) => n.data.type === 'Subsystem')).toBeTruthy();
+    expect(state.nodes.map((n) => n.id)).not.toContain('n1'); // member gone
+    expect(state.nodes.map((n) => n.id)).toContain('n2');    // non-member kept
+  });
+
   it('exposes the GROUP_NODE_TYPE constant', () => {
     expect(GROUP_NODE_TYPE).toBe('GroupBox');
   });

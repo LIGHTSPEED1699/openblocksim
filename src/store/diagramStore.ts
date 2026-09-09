@@ -5,6 +5,9 @@ import { BlockType, Params } from '../blocks/types';
 import type { SolverStats } from '../engine/types';
 import { pushEntry, sameDoc, snapshotDoc, type DiagramDoc, type HistoryEntry } from './history';
 import { GroupBox, GroupBoxRect, GROUP_BOX_COLORS, GROUP_BOX_MIN_WIDTH, GROUP_BOX_MIN_HEIGHT, groupMemberIds } from '../utils/groups';
+import { subsystemizeGroup } from '../utils/subsystemize';
+
+type SerializedGraphLike = { blocks: { id: string; type: unknown; params: unknown; position: unknown }[]; edges: unknown[] };
 
 interface SimConfig {
   dt: number;
@@ -53,6 +56,7 @@ interface DiagramState {
   moveGroupTo: (id: string, x: number, y: number) => void;
   resizeGroup: (id: string, patch: Partial<GroupBoxRect>) => void;
   deleteGroup: (id: string) => void;
+  convertGroupToSubsystem: (groupId: string) => void;
   selectGroup: (id: string | null) => void;
   setSimResults: (results: SimResults | null) => void;
   setSimError: (error: string | null) => void;
@@ -257,6 +261,34 @@ export const useDiagramStore = create<DiagramState>()(
               params: Object.fromEntries(Object.entries(state.params).filter(([k]) => !members.has(k))),
               selectedGroupId: state.selectedGroupId === id ? null : state.selectedGroupId,
               selectedBlockId: members.has(state.selectedBlockId ?? '') ? null : state.selectedBlockId,
+            };
+          });
+          recordMutation(before, currentDoc());
+        },
+        convertGroupToSubsystem: (groupId) => {
+          const before = currentDoc();
+          set((state) => {
+            const group = state.groups.find((g) => g.id === groupId);
+            if (!group) return state;
+            const members = new Set(groupMemberIds(group, state.nodes));
+            const res = subsystemizeGroup(group, state.nodes, state.edges);
+            // The fold is params-free (nodes carry only data.type); merge the
+            // store's real member params in before persisting the inner graph.
+            const withParams = (() => {
+              const parsed = JSON.parse(res.subsystemJson) as SerializedGraphLike;
+              parsed.blocks = parsed.blocks.map((b) => ({ ...b, params: state.params[b.id] ?? b.params }));
+              return JSON.stringify(parsed);
+            })();
+            return {
+              groups: state.groups.filter((g) => g.id !== groupId),
+              nodes: res.newNodes,
+              edges: res.newEdges,
+              params: {
+                ...Object.fromEntries(Object.entries(state.params).filter(([k]) => !members.has(k))),
+                [res.subsystemNode.id]: { subsystem: withParams },
+              },
+              selectedGroupId: null,
+              selectedBlockId: null,
             };
           });
           recordMutation(before, currentDoc());

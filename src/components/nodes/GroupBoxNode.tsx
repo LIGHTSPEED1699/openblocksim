@@ -17,6 +17,7 @@ export function GroupBoxNode({ id, selected }: NodeProps) {
   const nodes = useDiagramStore((s) => s.nodes);
   const deleteGroup = useDiagramStore((s) => s.deleteGroup);
   const selectGroup = useDiagramStore((s) => s.selectGroup);
+  const convertGroupToSubsystem = useDiagramStore((s) => s.convertGroupToSubsystem);
 
   if (!group) return null;
 
@@ -30,6 +31,12 @@ export function GroupBoxNode({ id, selected }: NodeProps) {
       selectGroup(null);
       deleteGroup(group.id);
     }
+  };
+
+  const handleConvert = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    selectGroup(null);
+    convertGroupToSubsystem(group.id);
   };
 
   return (
@@ -57,17 +64,30 @@ export function GroupBoxNode({ id, selected }: NodeProps) {
           {group.name}
         </div>
         {selected && (
-          <button
-            type="button"
-            aria-label={`Delete ${group.name} and contents`}
-            title={`Delete ${group.name} and its contents`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={handleDelete}
-            className="nodrag absolute right-1 top-1 w-5 h-5 rounded-full text-white text-xs leading-none flex items-center justify-center hover:opacity-80"
-            style={{ backgroundColor: group.color, pointerEvents: 'auto' }}
-          >
-            ×
-          </button>
+          <div className="nodrag absolute right-1 top-1 flex items-center gap-1" style={{ pointerEvents: 'auto' }}>
+            <button
+              type="button"
+              aria-label={`Convert ${group.name} to subsystem`}
+              title="Convert to subsystem"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleConvert}
+              className="w-5 h-5 rounded-full text-white text-[10px] leading-none flex items-center justify-center hover:opacity-80"
+              style={{ backgroundColor: group.color }}
+            >
+              ⇥
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete ${group.name} and contents`}
+              title={`Delete ${group.name} and its contents`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleDelete}
+              className="w-5 h-5 rounded-full text-white text-xs leading-none flex items-center justify-center hover:opacity-80"
+              style={{ backgroundColor: group.color }}
+            >
+              ×
+            </button>
+          </div>
         )}
       </div>
     </>
