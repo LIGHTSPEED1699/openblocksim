@@ -13,6 +13,10 @@ A pure client-side block diagram simulator for control systems. Build, simulate,
 - **Plotly.js** real-time scope widgets
 - **Zustand** state management with localStorage auto-save
 - **Undo/redo** for diagram edits — add/move/delete/param-edit (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, session-transient history)
+- **Grouping boxes** — colored, resizable, movable boxes that group nodes visually;
+  dragging a box moves its contained nodes, deleting a box (with confirmation) deletes
+  its contents, and membership follows geometry (a node whose top-left corner is inside
+  the box). Boxes are saved in the model JSON (`groups`) and survive export/import.
 - **JSON export/import** for saving and sharing models
 - **Dark/light theme** toggle
 - **Fully static** — deploy anywhere
