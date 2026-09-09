@@ -12,6 +12,7 @@ import {
   insertWaypoint,
   translateSegment,
   removeWaypoint,
+  moveWaypoint,
 } from './geometry';
 import { useDiagramStore } from '../../store/diagramStore';
 
@@ -55,7 +56,9 @@ export function StraightEdge({
 
   const dragRef = useRef<{
     V: XYPosition[];
-    segmentIndex: number;
+    segmentIndex?: number;
+    waypointIndex?: number;
+    baseWaypoints?: XYPosition[];
     isHorizontal: boolean;
     mode: 'translate' | 'bend' | 'vertex';
     materialized: boolean;
@@ -131,12 +134,17 @@ export function StraightEdge({
       const dr = dragRef.current;
       if (!dr) return;
 
-      const flowPos = screenToFlowPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
+      const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
-      // Defer materialization to first move with delta > 0
+      // Vertex mode (R-H3): reposition the grabbed stored waypoint directly.
+      if (dr.mode === 'vertex' && dr.waypointIndex !== undefined && dr.baseWaypoints) {
+        const moved = moveWaypoint(dr.baseWaypoints, dr.waypointIndex, flowPos);
+        dr.baseWaypoints = moved;
+        updateEdgeWaypoints(moved);
+        return;
+      }
+
+      // Defer materialization to first move with delta > 0 (segment modes).
       const delta = Math.abs(flowPos.x - dr.lastPos.x) + Math.abs(flowPos.y - dr.lastPos.y);
       if (delta < 0.5) return;
       dr.lastPos = flowPos;
@@ -152,7 +160,7 @@ export function StraightEdge({
         dr.materialized = true;
 
         if (dr.mode === 'bend') {
-          currentV = insertWaypoint(currentV, dr.segmentIndex, flowPos);
+          currentV = insertWaypoint(currentV, dr.segmentIndex!, flowPos);
           updateEdgeWaypoints(materializeWaypoints(currentV));
           dr.V = currentV;
           dr.mode = 'translate';
@@ -160,12 +168,12 @@ export function StraightEdge({
         }
       }
 
-      const a = dr.V[dr.segmentIndex];
+      const a = dr.V[dr.segmentIndex!];
       const deltaMove: XYPosition = dr.isHorizontal
         ? { x: 0, y: flowPos.y - a.y }
         : { x: flowPos.x - a.x, y: 0 };
 
-      const newV = translateSegment(dr.V, dr.segmentIndex, deltaMove);
+      const newV = translateSegment(dr.V, dr.segmentIndex!, deltaMove);
       dr.V = newV;
       updateEdgeWaypoints(materializeWaypoints(newV));
     },
@@ -176,6 +184,26 @@ export function StraightEdge({
     dragRef.current = null;
     useDiagramStore.getState().endCoalesce();
   }, []);
+
+  // Feature H R-H3: grab a rendered waypoint dot and move that single vertex.
+  const onWaypointPointerDown = useCallback(
+    (waypointIndex: number, e: React.PointerEvent) => {
+      e.stopPropagation();
+      const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      useDiagramStore.getState().beginCoalesce();
+      dragRef.current = {
+        V,
+        waypointIndex,
+        baseWaypoints: waypoints,
+        isHorizontal: false,
+        mode: 'vertex',
+        materialized: true,
+        lastPos: flowPos,
+      };
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    },
+    [V, waypoints, screenToFlowPosition],
+  );
 
   const onWaypointDoubleClick = useCallback(
     (waypointIndex: number, e: React.MouseEvent) => {
@@ -190,7 +218,7 @@ export function StraightEdge({
   const markerId = `edge-arrow-${id}`;
 
   return (
-    <g>
+    <g onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
       <defs>
         <marker
           id={markerId}
@@ -214,6 +242,8 @@ export function StraightEdge({
         }}
       />
 
+      {/* Feature H R-H3: move + up on the <g> root so pointer-captured drags
+          (capture target may be the hit path OR a waypoint dot) keep streaming. */}
       <path
         d={path}
         fill="none"
@@ -221,9 +251,6 @@ export function StraightEdge({
         strokeWidth={HIT_STROKE_WIDTH}
         style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
       />
@@ -238,7 +265,8 @@ export function StraightEdge({
             fill="#60a5fa"
             stroke="#fff"
             strokeWidth={1.5}
-            style={{ pointerEvents: 'all', cursor: 'pointer' }}
+            style={{ pointerEvents: 'all', cursor: 'move' }}
+            onPointerDown={(e) => onWaypointPointerDown(i, e)}
             onDoubleClick={(e) => onWaypointDoubleClick(i, e)}
           />
         ))}
