@@ -78,3 +78,17 @@ describe('Toolbar undo/redo buttons', () => {
     expect(screen.getByRole('button', { name: 'Redo' })).toBeEnabled();
   });
 });
+
+describe('Toolbar Group Box button', () => {
+  it('renders no Group Box button when onAddGroup is omitted', () => {
+    render(<Toolbar onRun={() => {}} onReset={() => {}} dt={0.01} duration={10} onDtChange={() => {}} onDurationChange={() => {}} theme="dark" onToggleTheme={() => {}} />);
+    expect(screen.queryByRole('button', { name: /group box/i })).toBeNull();
+  });
+
+  it('renders and fires the Group Box button when onAddGroup is provided', () => {
+    const onAddGroup = vi.fn();
+    render(<Toolbar onRun={() => {}} onReset={() => {}} dt={0.01} duration={10} onDtChange={() => {}} onDurationChange={() => {}} theme="dark" onToggleTheme={() => {}} onAddGroup={onAddGroup} />);
+    fireEvent.click(screen.getByRole('button', { name: /group box/i }));
+    expect(onAddGroup).toHaveBeenCalledTimes(1);
+  });
+});
