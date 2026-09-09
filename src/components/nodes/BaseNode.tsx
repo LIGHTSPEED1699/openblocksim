@@ -2,12 +2,16 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
 import { useDiagramStore } from '../../store/diagramStore';
+import { BlockType } from '../../blocks/types';
+import { getBlockMeta } from '../../blocks/meta';
+import { resolvePortLabels } from './portLabels';
 
 interface BaseNodeData {
   type: string;
   inputs: number;
   outputs: number;
   color: string;
+  flipped?: boolean; // horizontal mirror; renders in Task T4
   [key: string]: unknown;
 }
 
@@ -113,14 +117,6 @@ export function BaseNode({ id, data }: NodeProps) {
     ? (nodeData.type === 'Scope' ? '/scope-icon-dark.png' : '/step-icon-dark.png')
     : (nodeData.type === 'Scope' ? '/scope-icon.png' : '/step-icon.png');
 
-  // Sum block: render + / - signs on input ports based on signs parameter
-  // PID block: label input ports as e and PV
-  const isSum = nodeData.type === 'Sum';
-  const isPid = nodeData.type === 'PID';
-  // Fall back to default signs [1, 1] when params not yet populated (e.g. freshly dropped)
-  const signs = isSum ? ((params?.signs as number[]) ?? [1, 1]) : null;
-  const pidLabels = isPid ? ['e', 'PV'] : null;
-
   // Variable-input blocks: override nodeData.inputs with param-driven count
   const variableInputTypes = ['Sum', 'Product'];
   let effectiveInputs = nodeData.inputs;
@@ -133,6 +129,29 @@ export function BaseNode({ id, data }: NodeProps) {
     effectiveInputs = 0;
   }
   const effectiveOutputs = isComment ? 0 : nodeData.outputs;
+
+  // ── Port labels (Feature H, R-H1) ──
+  // Sum shows its live +/− sign per input (from params.signs) — a static
+  // BlockMeta list cannot express signs, so Sum is excluded from the generic
+  // resolver and its (removed) meta portLabels no longer double-labels.
+  // Every other block: explicit meta portLabels override u/inN defaults.
+  const isSum = nodeData.type === 'Sum';
+  const signs = isSum ? ((params?.signs as number[] | undefined) ?? [1, 1]) : null;
+  const metaEntry = getBlockMeta(nodeData.type as BlockType);
+  const labels = resolvePortLabels(effectiveInputs, effectiveOutputs, metaEntry?.portLabels);
+  const inputLabelText = (i: number): string | null => {
+    // Sum keeps its existing sign semantics: every input port shows its sign,
+    // defaulting to '+' beyond the length of the stored signs array.
+    if (isSum) return (signs![i] ?? 1) >= 0 ? '+' : '−';
+    return labels.inputs[i] ?? null;
+  };
+  const outputLabelText = (i: number): string | null => labels.outputs[i] ?? null;
+
+  // Port sides. Normal layout: inputs left, outputs right. Task T4 flips
+  // these two constants when node.data.flipped is set — nothing else here
+  // needs to change then.
+  const inSide = 'left';
+  const outSide = 'right';
 
   return (
     <div
@@ -157,22 +176,24 @@ export function BaseNode({ id, data }: NodeProps) {
       </span>
       {Array.from({ length: effectiveInputs }).map((_, i) => {
         const topPct = `${((i + 1) / (effectiveInputs + 1)) * 100}%`;
-        const signLabel = signs ? (signs[i] ?? 1) >= 0 ? '+' : '−' : null;
-        const portLabel = pidLabels ? pidLabels[i] : null;
-        const isPortLabel = portLabel !== null;
+        const label = inputLabelText(i);
         return (
           <div key={`in-${i}`}>
-            {(signLabel || portLabel) && (
+            {label !== null && (
               <div
-                className={`absolute select-none ${isPortLabel ? 'text-[6px] font-normal' : 'text-xs font-bold'} text-slate-600 dark:text-slate-300`}
-                style={{ top: topPct, left: '6px', transform: 'translateY(-50%)' }}
+                className={`absolute select-none pointer-events-none ${isSum ? 'text-xs font-bold' : 'text-[8px] font-normal'} text-slate-600 dark:text-slate-300`}
+                data-testid={`port-in-${i}`}
+                data-side={inSide}
+                style={inSide === 'right'
+                  ? { top: topPct, right: 6, transform: 'translateY(-50%)' }
+                  : { top: topPct, left: 6, transform: 'translateY(-50%)' }}
               >
-                {signLabel || portLabel}
+                {label}
               </div>
             )}
             <Handle
               type="target"
-              position={Position.Left}
+              position={inSide === 'right' ? Position.Right : Position.Left}
               id={`in-${i}`}
               style={{ top: topPct }}
               className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
@@ -180,16 +201,33 @@ export function BaseNode({ id, data }: NodeProps) {
           </div>
         );
       })}
-      {Array.from({ length: effectiveOutputs }).map((_, i) => (
-        <Handle
-          key={`out-${i}`}
-          type="source"
-          position={Position.Right}
-          id={`out-${i}`}
-          style={{ top: `${((i + 1) / (nodeData.outputs + 1)) * 100}%` }}
-          className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
-        />
-      ))}
+      {Array.from({ length: effectiveOutputs }).map((_, i) => {
+        const topPct = `${((i + 1) / (effectiveOutputs + 1)) * 100}%`;
+        const label = outputLabelText(i);
+        return (
+          <div key={`out-${i}`}>
+            {label !== null && (
+              <div
+                className="absolute select-none pointer-events-none text-[8px] font-normal text-slate-600 dark:text-slate-300"
+                data-testid={`port-out-${i}`}
+                data-side={outSide}
+                style={outSide === 'left'
+                  ? { top: topPct, left: 6, transform: 'translateY(-50%)' }
+                  : { top: topPct, right: 6, transform: 'translateY(-50%)' }}
+              >
+                {label}
+              </div>
+            )}
+            <Handle
+              type="source"
+              position={outSide === 'left' ? Position.Left : Position.Right}
+              id={`out-${i}`}
+              style={{ top: topPct }}
+              className="w-2 h-2 bg-slate-500 dark:bg-slate-400"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

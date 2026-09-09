@@ -26,7 +26,7 @@ const meta: Record<BlockType, BlockMetaEntry> = {
   [BlockType.StopSimulation]: { type: BlockType.StopSimulation, category: 'Sink', math: '\\blacksquare', doc: 'Stop simulation when input is non-zero', paramSpec: {} },
 
   // ── Math ──
-  [BlockType.Sum]: { type: BlockType.Sum, category: 'Math', math: '\\Sigma', doc: 'Sum or difference of inputs', portLabels: ['in₁', 'in₂'], paramSpec: { inputCount: { type: 'number', default: 2, min: 2, max: 8, step: 1, label: 'Input Count' }, signs: { type: 'array', default: [1, 1], label: 'Signs (1 or -1)' } } },
+  [BlockType.Sum]: { type: BlockType.Sum, category: 'Math', math: '\\Sigma', doc: 'Sum or difference of inputs', paramSpec: { inputCount: { type: 'number', default: 2, min: 2, max: 8, step: 1, label: 'Input Count' }, signs: { type: 'array', default: [1, 1], label: 'Signs (1 or -1)' } } },
   [BlockType.Gain]: { type: BlockType.Gain, category: 'Math', math: 'K', doc: 'Multiply input by gain', paramSpec: { gain: { type: 'number', default: 1, label: 'Gain' } } },
   [BlockType.Product]: { type: BlockType.Product, category: 'Math', math: '\\otimes', doc: 'Product or quotient of inputs', paramSpec: { inputCount: { type: 'number', default: 2, min: 2, max: 4, step: 1, label: 'Input Count' }, operators: { type: 'text', default: '*,*', label: 'Operators (* or /, comma-separated)' } } },
   [BlockType.Abs]: { type: BlockType.Abs, category: 'Math', math: '|x|', doc: 'Absolute value', paramSpec: {} },
