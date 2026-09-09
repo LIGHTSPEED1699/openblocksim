@@ -1,13 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import { StraightEdge } from '../../src/components/edges/StraightEdge';
 import type { EdgeProps } from '@xyflow/react';
 import React from 'react';
+import { mockStore } from '../../src/store/diagramStore';
 
 vi.mock('../../src/store/diagramStore', () => {
-  const storeState = { edges: [], setEdges: vi.fn(), theme: 'dark' };
+  const mockStore = {
+    edges: [{ id: 'e1', source: 'src', target: 'tgt', type: 'straight', data: { waypoints: [] } }],
+    setEdges: vi.fn(),
+    beginCoalesce: vi.fn(),
+    endCoalesce: vi.fn(),
+    theme: 'dark',
+  };
+  const useDiagramStore = (selector?: (s: any) => any) => (selector ? selector(mockStore) : mockStore);
+  (useDiagramStore as any).getState = () => mockStore;
   return {
-    useDiagramStore: (selector?: (s: any) => any) => selector ? selector(storeState) : storeState,
+    mockStore,
+    useDiagramStore,
   };
 });
 
@@ -132,5 +142,16 @@ describe('StraightEdge', () => {
     const d = path!.getAttribute('d')!;
     expect(d).toContain('200');
     expect(d).toContain('250');
+  });
+
+  it('brackets a waypoint drag with beginCoalesce/endCoalesce so history records one entry', () => {
+    const { container } = renderEdge(makeProps());
+    const hitPath = container.querySelector('path[stroke="transparent"]')!;
+    fireEvent.pointerDown(hitPath, { clientX: 200, clientY: 100 });
+    expect(mockStore.beginCoalesce).toHaveBeenCalledTimes(1);
+    fireEvent.pointerMove(hitPath, { clientX: 200, clientY: 150 });
+    expect(mockStore.setEdges).toHaveBeenCalled();
+    fireEvent.pointerUp(hitPath);
+    expect(mockStore.endCoalesce).toHaveBeenCalledTimes(1);
   });
 });
